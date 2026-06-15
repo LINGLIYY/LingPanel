@@ -22,13 +22,6 @@ let _sessionRefreshTimer = null;
 let _resizeObserver = null;
 let _termContainer = null;
 let _xtermLoading = null;
-let _activeSessionId = null;
-let _hasPty = false;
-let _fontSize = 13;
-let _sessionRefreshTimer = null;
-let _resizeObserver = null;
-let _termContainer = null;
-let _xtermLoading = null;
 
 /**
  * Lazy-load xterm.js and its addons (only when terminal tab is opened).
