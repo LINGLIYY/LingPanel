@@ -18,7 +18,6 @@ const METRIC_LABELS = {
   cpu_percent: 'CPU 使用率',
   mem_percent: '内存使用率',
   disk_percent: '磁盘使用率',
-  load_1min: '系统负载',
 };
 
 let _historyPage = 1;
@@ -205,7 +204,7 @@ function ensureAlertModal() {
       </h2>
       <div class="form-group"><label>规则名称</label><input id="alert-name" placeholder="例如：CPU 高温"></div>
       <div class="form-row">
-        <div class="form-group"><label>监控指标</label><select id="alert-metric"><option value="cpu_percent">cpu_percent</option><option value="mem_percent">mem_percent</option><option value="disk_percent">disk_percent</option><option value="load_1min">load_1min</option></select></div>
+        <div class="form-group"><label>监控指标</label><select id="alert-metric"><option value="cpu_percent">cpu_percent</option><option value="mem_percent">mem_percent</option><option value="disk_percent">disk_percent</option></select></div>
         <div class="form-group"><label>条件</label><select id="alert-condition"><option value=">">&gt;</option><option value="<">&lt;</option><option value=">=">&gt;=</option><option value="<=">&lt;=</option></select></div>
       </div>
       <div class="form-row">
@@ -228,6 +227,7 @@ function ensureAlertModal() {
 }
 
 function showAlertModal(editId) {
+  _installAlertModalListeners();
   const modal = ensureAlertModal();
   let allRules = [];
   // Try to load current rules for editing
@@ -271,8 +271,7 @@ function closeAlertModal() {
   document.getElementById('alert-new-rule')?.focus();
 }
 
-// Submit handler for alert modal
-document.addEventListener('click', (e) => {
+function _onAlertModalClick(e) {
   if (e.target.id !== 'alert-submit') return;
   const modal = document.getElementById('alert-modal');
   if (!modal) return;
@@ -283,7 +282,6 @@ document.addEventListener('click', (e) => {
   const threshold = parseFloat(document.getElementById('alert-threshold').value);
   const duration = parseInt(document.getElementById('alert-duration').value);
 
-  // Validation
   let valid = true;
   ['alert-name', 'alert-threshold', 'alert-duration'].forEach(id => {
     const el = document.getElementById(id);
@@ -304,17 +302,29 @@ document.addEventListener('click', (e) => {
       loadRules();
     })
     .catch(err => notify.error(`保存失败: ${err.message}`));
-});
+}
 
-// Close alert modal on Escape
-document.addEventListener('keydown', (e) => {
+function _onAlertModalKeydown(e) {
   if (e.key === 'Escape') {
     const modal = document.getElementById('alert-modal');
     if (modal && modal.getAttribute('aria-hidden') === 'false') {
       closeAlertModal();
     }
   }
-});
+}
+
+let _alertListenersInstalled = false;
+function _installAlertModalListeners() {
+  if (_alertListenersInstalled) return;
+  document.addEventListener('click', _onAlertModalClick);
+  document.addEventListener('keydown', _onAlertModalKeydown);
+  _alertListenersInstalled = true;
+}
+function _removeAlertModalListeners() {
+  document.removeEventListener('click', _onAlertModalClick);
+  document.removeEventListener('keydown', _onAlertModalKeydown);
+  _alertListenersInstalled = false;
+}
 
 // ═══════════════════════════════════════════════════════════
 //  History — table with status badges
@@ -396,4 +406,5 @@ export function cleanup() {
     off('alert', _onAlert);
     _onAlert = null;
   }
+  _removeAlertModalListeners();
 }

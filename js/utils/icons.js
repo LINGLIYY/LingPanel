@@ -74,6 +74,7 @@ const folderPlus   = () => svg(['M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-
 const serverSvg    = () => svg(['M5 2h14a2 2 0 012 2v4a2 2 0 01-2 2H5a2 2 0 01-2-2V4a2 2 0 012-2z','M5 14h14a2 2 0 012 2v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4a2 2 0 012-2z','M7 5h.01M7 17h.01']);
 const database     = () => svg(['M4 6c0 1.66 3.58 3 8 3s8-1.34 8-3M4 6v12c0 1.66 3.58 3 8 3s8-1.34 8-3V6','M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3']);
 const shield       = () => svg(['M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z']);
+const box          = () => svg(['M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z','M3.27 6.96L12 12.01l8.73-5.05','M12 22.08V12']);
 const settings     = () => svg(['M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z','M12 15a3 3 0 100-6 3 3 0 000 6z']);
 const globe        = () => svg(['M12 22a10 10 0 100-20 10 10 0 000 20z','M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10M12 2a15.3 15.3 0 00-4 10 15.3 15.3 0 004 10']);
 const dockerIcon   = () => svg(['M4 9h2v2H4zM7 9h2v2H7zM10 9h2v2h-2zM13 9h2v2h-2zM7 6h2v2H7zM10 6h2v2h-2zM13 6h2v2h-2zM4 12h2v2H4zM7 12h2v2H7zM10 12h2v2h-2zM13 12h2v2h-2zM1 15l1.5-1.5h17L21 15M3 16h16v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3z']);
@@ -111,7 +112,7 @@ const icons = {
   'chevron-left': chevronLeft, 'chevron-up': chevronUp, 'chevron-down': chevronDown,
   copy, paste, 'clear-format': clearFormat, terminal, eye, bell,
   folder, file, 'folder-plus': folderPlus,
-  server: serverSvg, database, shield, settings, globe, docker: dockerIcon,
+  server: serverSvg, database, shield, box, settings, globe, docker: dockerIcon,
   'circle-green': circleGreen, 'circle-red': circleRed, 'circle-yellow': circleYellow,
   moon, sun, logout: logoutIcon,
   'empty-box': emptyBox, 'empty-search': emptySearch,

@@ -326,3 +326,23 @@ async def save_file(req: FileSaveRequest, _user=Depends(get_current_user)):
         "size_bytes": len(req.content.encode("utf-8")),
         "message": "文件已保存",
     }
+
+
+@router.get("/roots")
+async def list_roots(_user=Depends(get_current_user)):
+    """Return whitelist roots that actually exist on this server,
+    so the frontend can pick a valid default starting path.
+    """
+    roots = []
+    for root in FILE_ROOT_WHITELIST:
+        try:
+            rp = Path(root).resolve()
+            if rp.exists() and rp.is_dir():
+                roots.append(str(rp))
+        except (ValueError, OSError):
+            continue
+    # Fallback: return the whitelist as-is so the user can see what's configured
+    if not roots:
+        roots = FILE_ROOT_WHITELIST[:]
+    default = roots[0] if roots else "/"
+    return {"roots": roots, "default": default}

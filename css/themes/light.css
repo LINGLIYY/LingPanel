@@ -10,8 +10,15 @@
     radial-gradient(ellipse 35% 30% at 50% 45%, oklch(0.98 0.005 240 / 0.12), transparent 70%),
     oklch(0.94 0.015 235);
 }
-[data-theme="light"] .bg-image-wrap img {
-  opacity: 0.28; filter: saturate(0.9) brightness(0.95) contrast(0.95);
+/* Light: show light image, hide dark image */
+[data-theme="light"] .bg-img-dark  { display: none; }
+[data-theme="light"] .bg-img-light {
+  display: block; opacity: 0.48;
+  filter: saturate(1.05) brightness(1.0) contrast(1.0);
+}
+[data-theme="light"] .bg-image-glow {
+  display: block;
+  background: radial-gradient(ellipse at 55% 45%, oklch(0.62 0.16 235 / 0.06) 0%, transparent 65%);
 }
 
 /* Light: code SVG */

@@ -71,7 +71,8 @@ export function initControlBar() {
   const imgLabel = document.querySelector('.ctrl-img-label');
   const prevBtn = document.getElementById('ctrl-img-prev');
   const nextBtn = document.getElementById('ctrl-img-next');
-  const bgImg = bgImgWrap ? bgImgWrap.querySelector('img') : null;
+  const bgImgDark = bgImgWrap ? bgImgWrap.querySelector('.bg-img-dark') : null;
+  const bgImgLight = bgImgWrap ? bgImgWrap.querySelector('.bg-img-light') : null;
 
   function getPool() {
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
@@ -85,8 +86,10 @@ export function initControlBar() {
 
   function applyImage() {
     const { pool, idx } = getPool();
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
     const src = pool[idx];
-    if (bgImg) bgImg.src = `dame/登录页/${src}`;
+    if (isLight && bgImgLight) bgImgLight.src = `dame/登录页/${src}`;
+    else if (!isLight && bgImgDark) bgImgDark.src = `dame/登录页/${src}`;
     updateImageLabel();
   }
 

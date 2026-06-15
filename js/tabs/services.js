@@ -204,20 +204,30 @@ function openSvcEdit(svc) {
     if (submit) submit.textContent = '添加服务';
   }
 
-  // Hook into the global service modal submit
-  window._svcTabSubmit = function(name, desc, editId) {
+  // Bind submit handler — reads values directly from DOM (no param passing)
+  window._svcTabSubmit = () => {
+    const n = document.getElementById('svc-name')?.value?.trim();
+    const d = document.getElementById('svc-desc')?.value?.trim();
+    const eid = document.getElementById('svc-edit-id')?.value;
+    if (!n) {
+      document.getElementById('svc-name')?.classList.add('error');
+      return;
+    }
     const services = loadCustom();
-    if (editId) {
-      const s = services.find(x => x.id === editId);
-      if (s) { s.name = name; s.desc = desc; }
+    if (eid) {
+      const s = services.find(x => String(x.id) === String(eid));
+      if (s) { s.name = n; s.desc = d || n; }
     } else {
-      services.push({ id: 'svc_' + Date.now(), name, desc, icon: 'box' });
+      services.push({ id: 'svc_' + Date.now(), name: n, desc: d || n, icon: 'box' });
     }
     saveCustom(services);
-    if (urlField) urlField.style.display = '';
     renderCustomServices();
-    notify.info(name + (editId ? ' 已更新' : ' 已添加'));
     window._svcTabSubmit = null;
+    notify.info(n + (eid ? ' 已更新' : ' 已添加'));
+
+    const bd = document.getElementById('service-modal');
+    if (bd) { bd.classList.add('closing'); bd.setAttribute('aria-hidden', 'true');
+      setTimeout(() => bd.classList.remove('open', 'closing'), 200); }
   };
 
   // Open the shared service modal

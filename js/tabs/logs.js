@@ -57,9 +57,9 @@ async function loadLogs() {
   const level = $('#log-level')?.value || '';
   const regex = $('#log-search')?.value || '';
 
-  let url = `/api/logs/read?source=${source}`;
-  if (level) url += `&level=${level}`;
-  if (regex) url += `&regex=${encodeURIComponent(regex)}`;
+  let url = `/api/logs/read?source_id=${encodeURIComponent(source)}&lines=200`;
+  if (level) url += `&filter_level=${level}`;
+  if (regex) url += `&filter_regex=${encodeURIComponent(regex)}`;
 
   try {
     const data = await get(url);

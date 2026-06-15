@@ -32,31 +32,31 @@ export async function renderOverview(container) {
   const kpiRow = el('div', { class: 'kpi-row', id: 'kpi-row' });
   container.appendChild(kpiRow);
 
-  // ── CPU Waveform ──
-  const wavePanel = el('div', { class: 'panel panel--wave' },
-    el('div', { class: 'panel__header' },
-      el('h2', { class: 'panel__title' },
-        el('span', { class: 'prompt' }, '$'),
-        ' CPU 使用率 — 最近 60 秒',
+  // ── Detail panels row (3-column: waveform | system info | disks) ──
+  const detailRow = el('div', { class: 'detail-row' },
+    // CPU Waveform (column 1)
+    el('div', { class: 'panel panel--wave' },
+      el('div', { class: 'panel__header' },
+        el('h2', { class: 'panel__title' },
+          el('span', { class: 'prompt' }, '$'),
+          ' cpu --watch',
+        ),
+      ),
+      el('div', { class: 'panel__body' },
+        el('canvas', { id: 'cpu-canvas', class: 'wave-canvas', role: 'img', 'aria-label': 'CPU 使用率波形图，最近 60 秒' }),
       ),
     ),
-    el('div', { class: 'panel__body' },
-      el('canvas', { id: 'cpu-canvas', class: 'wave-canvas' }),
-    ),
-  );
-  container.appendChild(wavePanel);
-
-  // ── Detail panels row ──
-  const detailRow = el('div', { class: 'detail-row' },
+    // System Info (column 2)
     el('div', { class: 'panel', id: 'detail-system' },
       el('div', { class: 'panel__header' },
         el('h2', { class: 'panel__title' },
           el('span', { class: 'prompt' }, '$'),
-          ' uname -a',
+          ' cat /proc/cpuinfo',
         ),
       ),
       el('div', { class: 'panel__body', id: 'detail-system-body' }),
     ),
+    // Disk Table (column 3)
     el('div', { class: 'panel', id: 'detail-disks' },
       el('div', { class: 'panel__header' },
         el('h2', { class: 'panel__title' },
@@ -64,7 +64,9 @@ export async function renderOverview(container) {
           ' df -h',
         ),
       ),
-      el('div', { class: 'panel__body', id: 'detail-disks-body' }),
+      el('div', { class: 'panel__body', id: 'detail-disks-body' },
+        el('div', { class: 'empty-state' }, '暂无磁盘数据'),
+      ),
     ),
   );
   container.appendChild(detailRow);
@@ -74,7 +76,7 @@ export async function renderOverview(container) {
     el('div', { class: 'panel__header' },
       el('h2', { class: 'panel__title' },
         el('span', { class: 'prompt' }, '$'),
-        ' ssh quick-connect',
+        ' ssh quick.launchpad',
       ),
       el('div', { class: 'panel__actions' },
         el('div', { class: 'view-toggle', id: 'launchpad-toggle' },
@@ -348,9 +350,10 @@ function renderLaunchpad() {
   });
   // Add button
   grid.appendChild(el('div', { class: 'svc-card svc-card--add', onClick: () => openServiceModal(null) },
-    el('span', { class: 'svc-card__icon', html: '+' }),
+    el('span', { class: 'svc-card__icon', html: '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' }),
     el('span', { class: 'svc-card__body' },
-      el('span', { class: 'svc-card__name' }, '新建服务'),
+      el('span', { class: 'svc-card__name' }, '新建入口'),
+      el('span', { class: 'svc-card__desc' }, '添加快捷方式'),
     ),
   ));
 
@@ -381,9 +384,7 @@ function openServiceModal(editId) {
   const title = $('#service-modal-title');
   const submit = $('#modal-submit');
   const urlField = urlInp?.closest('.modal-field');
-
-  if (urlField) urlField.style.display = '';
-  window._svcTabSubmit = null;
+  if (urlField) urlField.style.display = '';  // restore visibility (services tab hides it)
 
   if (nameInp) nameInp.classList.remove('error');
   if (urlInp) urlInp.classList.remove('error');
@@ -406,6 +407,32 @@ function openServiceModal(editId) {
     if (title) title.innerHTML = '<span class="prompt">$</span> ssh-add quick';
     if (submit) submit.textContent = '添加入口';
   }
+
+  // Bind submit handler — reads values directly from DOM (no param passing)
+  window._svcTabSubmit = () => {
+    const n = $('#svc-name')?.value?.trim();
+    const u = $('#svc-url')?.value?.trim();
+    const d = $('#svc-desc')?.value?.trim();
+    const eid = $('#svc-edit-id')?.value;
+    if (!n) {
+      $('#svc-name')?.classList.add('error');
+      return;
+    }
+    const services = loadServices();
+    if (eid) {
+      const s = services.find(x => String(x.id) === String(eid));
+      if (s) { s.name = n; s.url = u || '#'; s.desc = d || n; }
+    } else {
+      services.push({ id: 's_' + Date.now(), name: n, url: u || '#', desc: d || n, icon: 'service' });
+    }
+    saveServices(services);
+    renderLaunchpad();
+    const bd = document.getElementById('service-modal');
+    if (bd) { bd.classList.add('closing'); bd.setAttribute('aria-hidden', 'true');
+      setTimeout(() => bd.classList.remove('open', 'closing'), 200); }
+    window._svcTabSubmit = null;
+    notify.info(n + (eid ? ' 已更新' : ' 已添加'));
+  };
 
   const backdrop = document.getElementById('service-modal');
   if (backdrop) {

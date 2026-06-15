@@ -11,7 +11,7 @@ import { confirm } from '../utils/confirm.js';
 import { bytes, percent } from '../utils/format.js';
 
 let _refreshTimer = null;
-let _sortKey = 'cpu_percent', _sortDir = -1, _page = 1;
+let _sortKey = 'cpu', _sortDir = -1, _page = 1;
 
 export async function renderProcesses(container) {
   clear(container);
@@ -38,7 +38,7 @@ async function loadProcesses() {
   const body = $('#proc-body');
   if (!body) return;
   try {
-    const data = await get(`/api/processes?sort=${_sortKey}&order=${_sortDir > 0 ? 'asc' : 'desc'}&page=${_page}&limit=25`);
+    const data = await get(`/api/processes?sort=${_sortKey}&limit=100`);
     renderTable(data, body);
   } catch (e) {
     body.innerHTML = `<div class="empty-state">加载失败: ${e.message}</div>`;
@@ -51,12 +51,13 @@ function renderTable(data, body) {
 
   if (!procs.length) { body.innerHTML = '<div class="empty-state">无进程数据</div>'; return; }
 
+  const COL_SORT_MAP = { cpu: 'cpu', cpu_percent: 'cpu', memory_percent: 'memory_percent' };
   const columns = [
     { key: 'pid', label: 'PID' },
     { key: 'name', label: '进程名' },
     { key: 'cpu_percent', label: 'CPU %' },
-    { key: 'mem_percent', label: '内存 %' },
-    { key: 'mem_bytes', label: '内存' },
+    { key: 'memory_percent', label: '内存 %' },
+    { key: 'username', label: '用户' },
     { key: 'status', label: '状态' },
     { key: 'actions', label: '' },
   ];
@@ -70,13 +71,12 @@ function renderTable(data, body) {
   body.innerHTML = `<table class="proc-table">
     <thead><tr>${columns.map(th).join('')}</tr></thead>
     <tbody>${procs.map(p => {
-      const memStr = p.mem_bytes ? bytes(p.mem_bytes) : (p.mem_percent ? percent(p.mem_percent) : '--');
       return `<tr>
         <td>${p.pid}</td>
         <td style="font-weight:500">${_esc(p.name)}</td>
         <td>${percent(p.cpu_percent || 0)}</td>
-        <td>${percent(p.mem_percent || 0)}</td>
-        <td>${memStr}</td>
+        <td>${percent(p.memory_percent || 0)}</td>
+        <td>${_esc(p.username || '--')}</td>
         <td><span class="status-badge status-badge--neutral">${p.status || '--'}</span></td>
         <td><button class="panel__btn panel__btn--danger panel__btn--sm proc-action" data-kill="${p.pid}">终止</button></td>
       </tr>`;
@@ -86,24 +86,29 @@ function renderTable(data, body) {
   body.querySelectorAll('th[data-sort]').forEach(th => {
     th.addEventListener('click', () => {
       const key = th.dataset.sort;
-      if (_sortKey === key) _sortDir *= -1;
-      else { _sortKey = key; _sortDir = -1; }
+      const mapped = COL_SORT_MAP[key] || key;
+      if (_sortKey === mapped) _sortDir *= -1;
+      else { _sortKey = mapped; _sortDir = -1; }
       loadProcesses();
     });
   });
 
-  // Kill buttons
+  // Kill buttons (with double-click guard)
   body.querySelectorAll('[data-kill]').forEach(btn => {
+    let killing = false;
     btn.addEventListener('click', async () => {
+      if (killing) return;
       const pid = btn.dataset.kill;
       const ok = await confirm(`确定终止进程 PID ${pid}？`, '终止进程');
       if (!ok) return;
+      killing = true; btn.disabled = true;
       try {
         await del(`/api/processes/${pid}`);
         notify.success(`已终止 PID ${pid}`);
         loadProcesses();
       } catch (e) {
         notify.error(`终止失败: ${e.message}`);
+        killing = false; btn.disabled = false;
       }
     });
   });

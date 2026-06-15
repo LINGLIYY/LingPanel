@@ -180,7 +180,7 @@
 
 /* ---- Control Bar (Debug Panel) ---- */
 .ctrl-bar {
-  position: fixed; top: 10px; right: 10px; z-index: 100;
+  position: fixed; top: 60px; right: 10px; z-index: 100;
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   padding: 6px 5px;
   background: oklch(0.10 0.01 260 / 0.75);
@@ -227,7 +227,7 @@
 .ctrl-arrow:hover { color: oklch(0.70 0.10 255); background: oklch(1 0 0 / 0.04); }
 
 .debug-restore {
-  display: none; position: fixed; top: 14px; right: 14px; z-index: 100;
+  display: none; position: fixed; top: 64px; right: 14px; z-index: 100;
   width: 34px; height: 34px;
   align-items: center; justify-content: center; border-radius: 8px;
   background: oklch(0.12 0.01 260 / 0.85);
@@ -521,14 +521,18 @@
 .empty-state svg { width: 48px; height: 48px; opacity: 0.3; }
 
 /* ---- Modal System (Double Glass) ---- */
-   ============================================================ */
+
 .modal-backdrop {
   position: fixed; inset: 0; z-index: 1000;
-  display: flex; align-items: center; justify-content: center;
+  display: none; align-items: center; justify-content: center;
   background: oklch(0 0 0 / 0.55);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   animation: fadeIn 0.2s var(--ease-out);
+}
+.modal-backdrop.open,
+.modal-backdrop[aria-hidden="false"] {
+  display: flex;
 }
 .modal-backdrop.closing { animation: fadeOut 0.15s var(--ease-out) forwards; }
 
@@ -986,4 +990,293 @@
   transition: all var(--dur-fast);
 }
 .toast__undo:hover { background: oklch(1 0 0 / 0.12); }
+
+/* ============================================================
+   LOGIN CARD (dame double-glass)
+   ============================================================ */
+
+/* ── Outer shell: blur layer, glass depth ── */
+.card-shell {
+  position: relative; z-index: 10;
+  width: 440px; max-width: calc(100vw - 32px);
+  padding: 4px; border-radius: 20px;
+  background: oklch(0.10 0.01 260 / 0.35);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid oklch(1 0 0 / 0.08);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.10), 0 0 80px oklch(0.55 0.18 255 / 0.04), 0 8px 32px oklch(0 0 0 / 0.5);
+  transition: transform 0.4s var(--ease-theme), opacity 0.35s var(--ease-theme);
+}
+.card-shell.collapsed { transform: translateY(60px) scale(0.95); opacity: 0; pointer-events: none; }
+
+/* ── Inner card: color layer ── */
+.card {
+  background: oklch(0.08 0.01 260 / 0.88);
+  border: 1px solid oklch(1 0 0 / 0.09);
+  border-radius: 16px; padding: 48px 40px 40px;
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.06), inset 0 3px 0 0 oklch(0.72 0.22 160 / 0.25);
+  overflow: hidden; position: relative;
+}
+.card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 40%;
+  border-radius: 16px 16px 0 0;
+  background: linear-gradient(180deg, oklch(1 0 0 / 0.05) 0%, transparent 100%);
+  pointer-events: none; z-index: 0;
+}
+.card > * { position: relative; z-index: 1; }
+
+/* ── Dismiss button ── */
+.card__dismiss {
+  position: absolute; top: 12px; right: 14px; z-index: 2;
+  width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; color: oklch(0.40 0.01 260); font-size: 16px;
+  transition: color 0.15s, background 0.15s; cursor: pointer; background: none; border: none;
+}
+.card__dismiss:hover { color: oklch(0.72 0.22 160); background: oklch(1 0 0 / 0.04); }
+
+/* ── Restore button (floating, shown when card is collapsed) ── */
+.card__restore {
+  position: absolute; bottom: 48px; left: 50%; transform: translateX(-50%); z-index: 60;
+  display: none; align-items: center; gap: 8px; padding: 10px 20px;
+  background: oklch(0.10 0.01 260 / 0.50); backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px); border: 1px solid oklch(1 0 0 / 0.10);
+  border-radius: 24px; font-family: var(--font-mono); font-size: 12px;
+  color: oklch(0.60 0.02 260); cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  animation: restore-in 0.35s var(--ease-theme);
+}
+.card__restore.visible { display: flex; }
+.card__restore:hover {
+  background: oklch(0.14 0.01 260 / 0.70); border-color: oklch(0.72 0.22 160 / 0.40);
+  color: oklch(0.72 0.22 160);
+}
+.card__restore svg { width: 16px; height: 16px; }
+
+@keyframes restore-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(16px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ── Logo ── */
+.card__logo {
+  display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 8px;
+}
+.card__logo-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--neon);
+  box-shadow: 0 0 12px var(--neon), 0 0 28px oklch(0.72 0.22 160 / 0.4);
+  animation: ripple-pulse 2.2s ease-in-out infinite; flex-shrink: 0;
+}
+@keyframes ripple-pulse {
+  0%   { box-shadow: 0 0 8px var(--neon), 0 0 20px oklch(0.72 0.22 160 / 0.3); }
+  50%  { box-shadow: 0 0 18px var(--neon), 0 0 40px oklch(0.72 0.22 160 / 0.7); }
+  100% { box-shadow: 0 0 8px var(--neon), 0 0 20px oklch(0.72 0.22 160 / 0.3); }
+}
+.card__logo-text {
+  font-family: var(--font-mono); font-size: 15px; font-weight: 700;
+  color: oklch(0.85 0.02 260); letter-spacing: 0.06em; text-transform: uppercase;
+}
+
+/* ── SSH typing line ── */
+.card__ssh {
+  display: flex; align-items: center; justify-content: center; gap: 0;
+  font-family: var(--font-mono); font-size: 12px; color: oklch(0.72 0.22 160);
+  margin-bottom: 12px; height: 20px;
+}
+.card__ssh-prompt { color: oklch(0.72 0.22 160 / 0.7); white-space: pre; }
+.card__ssh-cursor {
+  display: inline-block; width: 8px; height: 15px;
+  background: oklch(0.72 0.22 160 / 0.9);
+  animation: cursor-blink 0.8s step-end infinite; vertical-align: text-bottom; margin-left: 1px;
+}
+@keyframes cursor-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+/* ── Error message ── */
+.card__error {
+  position: relative; margin-bottom: 16px; padding: 10px 14px;
+  background: oklch(0.55 0.22 25 / 0.10); border: 1px solid oklch(0.55 0.22 25 / 0.30);
+  border-radius: 8px; font-family: var(--font-mono); font-size: 12px;
+  color: var(--red); overflow: hidden; display: none;
+}
+.card__error.visible { display: block; animation: shake 0.4s ease-in-out; }
+.card__error-prefix { color: oklch(0.55 0.22 25 / 0.85); margin-right: 6px; font-weight: 600; }
+.card__error-text { position: relative; z-index: 1; }
+
+/* Error ghost — code matrix background */
+.card__error-ghost {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none; user-select: none;
+  display: flex; flex-wrap: wrap; align-content: center; gap: 2px 6px;
+  padding: 8px 12px; font-family: var(--font-mono); font-size: 8px;
+  line-height: 1.5; color: oklch(0.55 0.22 25 / 0.12); letter-spacing: 0.12em;
+  animation: err-ghost-drift 4s ease-in-out infinite alternate;
+}
+@keyframes err-ghost-drift { 0% { transform: translateY(0); opacity: 0.7; } 100% { transform: translateY(-6px); opacity: 1; } }
+
+/* Scan line */
+.card__error::after {
+  content: ''; position: absolute; left: 0; right: 0; height: 1px;
+  background: oklch(0.55 0.22 25 / 0.25); z-index: 0; pointer-events: none;
+  animation: err-scan 2.5s linear infinite;
+}
+@keyframes err-scan { 0% { top: 0; } 100% { top: 100%; } }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-6px); }
+  40%      { transform: translateX(6px); }
+  60%      { transform: translateX(-4px); }
+  80%      { transform: translateX(4px); }
+}
+
+/* ── Form fields ── */
+.card__field { margin-bottom: 18px; }
+.card__field-label {
+  display: flex; align-items: center; gap: 4px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  color: oklch(0.40 0.01 260); text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+.card__field-prompt { color: oklch(0.72 0.22 160 / 0.6); }
+.card__field-input {
+  position: relative; display: flex; align-items: center;
+  background: oklch(0.06 0.01 260 / 0.6);
+  border: 1px solid oklch(1 0 0 / 0.07); border-radius: 8px;
+  transition: border-color 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
+}
+.card__field-input:focus-within {
+  border-color: oklch(0.72 0.22 160 / 0.45);
+  box-shadow: 0 0 0 3px oklch(0.72 0.22 160 / 0.08);
+}
+.card__field-input input {
+  flex: 1; padding: 12px 14px; background: none; border: none; outline: none;
+  font-family: var(--font-mono); font-size: 14px; color: oklch(0.85 0.02 260);
+}
+.card__field-input input::placeholder { color: oklch(0.30 0.01 260); }
+.card__field-input input.error {
+  border-color: oklch(0.55 0.22 25 / 0.5);
+  animation: shake 0.4s ease-in-out;
+}
+.card__field-toggle {
+  padding: 4px 12px; color: oklch(0.40 0.01 260); cursor: pointer;
+  transition: color 0.15s; display: flex; align-items: center;
+}
+.card__field-toggle:hover { color: oklch(0.65 0.02 260); }
+
+/* ── Submit button ── */
+.card__submit {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 46px; margin-top: 8px; border-radius: 10px;
+  background: oklch(0.55 0.18 255); color: #ffffff;
+  font-family: var(--font-sans); font-size: 15px; font-weight: 600;
+  letter-spacing: 0.12em; cursor: pointer; border: none;
+  transition: background 0.2s var(--ease-out), box-shadow 0.3s var(--ease-out);
+  animation: btn-breathe 3s ease-in-out infinite;
+  position: relative; overflow: hidden;
+}
+@keyframes btn-breathe {
+  0%, 100% { box-shadow: 0 0 20px oklch(0.55 0.18 255 / 0.15), 0 4px 16px oklch(0 0 0 / 0.4); }
+  50%      { box-shadow: 0 0 40px oklch(0.55 0.18 255 / 0.35), 0 4px 20px oklch(0 0 0 / 0.5); }
+}
+.card__submit:hover {
+  background: oklch(0.62 0.15 255); animation: none;
+  box-shadow: 0 0 48px oklch(0.55 0.18 255 / 0.45), 0 4px 24px oklch(0 0 0 / 0.5);
+}
+.card__submit:active { background: oklch(0.48 0.18 255); transform: scale(0.98); transition: transform 0.1s var(--ease-out); }
+.card__submit.loading { pointer-events: none; opacity: 0.8; animation: none; }
+.card__submit .spinner {
+  display: none; position: absolute;
+  width: 20px; height: 20px;
+  border: 2px solid oklch(1 0 0 / 0.3);
+  border-top-color: #fff; border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+.card__submit.loading .btn-text { display: none; }
+.card__submit.loading .spinner { display: inline-block; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Divider ── */
+.card__divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.12) 20%, oklch(1 0 0 / 0.12) 80%, transparent);
+  margin-bottom: 28px;
+}
+
+/* ── Footer ── */
+.card__footer {
+  margin-top: 20px; text-align: center; font-family: var(--font-mono);
+  font-size: 10px; color: oklch(0.30 0.01 260); letter-spacing: 0.03em;
+}
+.card__footer span { color: oklch(0.40 0.01 260); }
+
+/* ── Particle canvas ── */
+.particle-canvas { position: fixed; inset: 0; z-index: 50; pointer-events: none; }
+
+/* ── Light theme login card ── */
+[data-theme="light"] .card-shell {
+  background: oklch(0.96 0.01 240 / 0.55);
+  border-color: oklch(1 0 0 / 0.40);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.45), 0 0 60px oklch(0.58 0.16 235 / 0.06), 0 8px 24px oklch(0.40 0.06 235 / 0.10);
+}
+[data-theme="light"] .card {
+  background: oklch(1 0 0 / 0.30);
+  border-color: oklch(1 0 0 / 0.35);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.35), inset 0 3px 0 0 oklch(0.58 0.16 235);
+}
+[data-theme="light"] .card::before { background: linear-gradient(180deg, oklch(1 0 0 / 0.20) 0%, transparent 100%); }
+[data-theme="light"] .card__logo-text { color: oklch(0.48 0.12 210); }
+[data-theme="light"] .card__logo-dot {
+  background: oklch(0.58 0.16 235);
+  box-shadow: 0 0 0 4px oklch(0.58 0.16 235 / 0.25);
+}
+[data-theme="light"] .card__ssh-prompt { color: oklch(0.48 0.12 210); }
+[data-theme="light"] .card__ssh-cursor { background: oklch(0.48 0.12 210); }
+[data-theme="light"] .card__error {
+  background: oklch(0.52 0.18 25 / 0.06); border-color: oklch(0.52 0.18 25 / 0.22);
+}
+[data-theme="light"] .card__field-label { color: oklch(0.50 0.03 245); }
+[data-theme="light"] .card__field-prompt { color: oklch(0.48 0.12 210); }
+[data-theme="light"] .card__field-input {
+  background: oklch(0.975 0.005 240); border-color: oklch(0.84 0.02 240);
+}
+[data-theme="light"] .card__field-input:focus-within {
+  border-color: oklch(0.58 0.16 235);
+  box-shadow: 0 0 0 3px oklch(0.58 0.16 235 / 0.12);
+}
+[data-theme="light"] .card__field-input input { color: oklch(0.22 0.03 245); }
+[data-theme="light"] .card__field-input input::placeholder { color: oklch(0.58 0.02 240); }
+[data-theme="light"] .card__field-input input.error { border-color: oklch(0.52 0.18 25); }
+[data-theme="light"] .card__field-toggle { color: oklch(0.50 0.03 245); }
+[data-theme="light"] .card__field-toggle:hover { color: oklch(0.25 0.06 245); }
+[data-theme="light"] .card__divider { background: oklch(0.88 0.02 240); }
+[data-theme="light"] .card__error-ghost { color: oklch(0.48 0.20 25 / 0.12); }
+[data-theme="light"] .card__error::after { background: oklch(0.48 0.20 25 / 0.15); }
+[data-theme="light"] .card__submit {
+  background: oklch(0.58 0.16 235); color: #ffffff; font-weight: 600;
+  box-shadow: 0 1px 2px oklch(0 0 0 / 0.08), 0 4px 14px oklch(0.58 0.16 235 / 0.25);
+  animation: btn-breathe-light 3.5s ease-in-out infinite;
+  transition: background 0.2s ease, box-shadow 0.3s ease, transform 0.1s ease;
+}
+@keyframes btn-breathe-light {
+  0%, 100% { box-shadow: 0 1px 2px oklch(0 0 0 / 0.06), 0 4px 12px oklch(0.58 0.16 235 / 0.18); }
+  50%      { box-shadow: 0 1px 2px oklch(0 0 0 / 0.08), 0 6px 26px oklch(0.58 0.16 235 / 0.35); }
+}
+[data-theme="light"] .card__submit:hover {
+  background: oklch(0.62 0.16 235); animation: none;
+  box-shadow: 0 2px 4px oklch(0 0 0 / 0.10), 0 8px 30px oklch(0.58 0.16 235 / 0.45);
+}
+[data-theme="light"] .card__submit:active { background: oklch(0.52 0.16 235); }
+[data-theme="light"] .card__submit.loading { animation: none; opacity: 0.85; }
+[data-theme="light"] .card__footer { color: oklch(0.55 0.03 245); font-size: 11px; }
+[data-theme="light"] .card__footer span { color: oklch(0.42 0.06 240); font-weight: 500; }
+[data-theme="light"] .card__dismiss { color: oklch(0.50 0.03 245); }
+[data-theme="light"] .card__dismiss:hover { color: oklch(0.48 0.12 210); background: oklch(0 0 0 / 0.04); }
+[data-theme="light"] .card__restore {
+  background: oklch(1 0 0 / 0.55); backdrop-filter: blur(16px);
+  border: 1px solid oklch(0.88 0.02 240 / 0.6); color: oklch(0.48 0.04 245);
+}
+[data-theme="light"] .card__restore:hover {
+  background: oklch(1 0 0 / 0.75); border-color: oklch(0.62 0.16 235 / 0.50);
+  color: oklch(0.52 0.16 235);
+}
 

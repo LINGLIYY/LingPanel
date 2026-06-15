@@ -11,11 +11,21 @@ import { notify } from '../utils/notify.js';
 import { confirm } from '../utils/confirm.js';
 import { bytes } from '../utils/format.js';
 
-let _currentPath = '/home';
+let _currentPath = null;
 let _refreshTimer = null;
 
 export async function renderFiles(container) {
   clear(container);
+
+  // Auto-detect a valid default path from the server
+  if (!_currentPath) {
+    try {
+      const rootsData = await get('/api/files/roots');
+      _currentPath = rootsData.default || rootsData.roots?.[0] || '/home';
+    } catch (_) {
+      _currentPath = '/home';  // fallback for older backends
+    }
+  }
 
   const panel = el('div', { class: 'panel' },
     el('div', { class: 'panel__header' },
@@ -44,14 +54,51 @@ export async function renderFiles(container) {
   );
   container.appendChild(panel);
 
-  $('#file-mkdir')?.addEventListener('click', async () => {
-    const name = prompt('新目录名称:');
-    if (!name) return;
-    try {
-      await post('/api/files/mkdir', null, { params: { path: _currentPath, name } });
-      notify.success(`已创建目录 ${name}`);
-      loadDirectory();
-    } catch (e) { notify.error(`创建失败: ${e.message}`); }
+  // Inline mkdir input (replaces native prompt())
+  let mkdirActive = false;
+  $('#file-mkdir')?.addEventListener('click', () => {
+    if (mkdirActive) return;
+    const btn = $('#file-mkdir');
+    if (!btn) return;
+    mkdirActive = true;
+    btn.style.display = 'none';
+
+    const wrap = el('div', { style: 'display:flex;gap:6px;align-items:center;' });
+    const inp = el('input', { type: 'text', placeholder: '目录名...', maxlength: 60,
+      style: 'width:160px;height:30px;padding:0 8px;border-radius:6px;border:1px solid var(--color-border);background:oklch(0.06 0.01 260 / 0.6);color:var(--t-body);font-family:var(--font-mono);font-size:12px;' });
+    const okBtn = el('button', { class: 'panel__btn panel__btn--primary', style: 'height:30px;' }, '创建');
+    const cancelBtn = el('button', { class: 'panel__btn', style: 'height:30px;' }, '取消');
+
+    const reset = () => {
+      mkdirActive = false;
+      wrap.remove();
+      if (btn) btn.style.display = '';
+    };
+
+    cancelBtn.addEventListener('click', reset);
+
+    okBtn.addEventListener('click', async () => {
+      const name = inp.value.trim();
+      if (!name) { notify.error('请输入目录名'); return; }
+      okBtn.disabled = true;
+      try {
+        await post(`/api/files/mkdir?path=${encodeURIComponent(_currentPath)}&name=${encodeURIComponent(name)}`);
+        notify.success(`已创建目录 ${name}`);
+        loadDirectory();
+        reset();
+      } catch (e) { notify.error(`创建失败: ${e.message}`); okBtn.disabled = false; }
+    });
+
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') okBtn.click();
+      if (e.key === 'Escape') reset();
+    });
+
+    wrap.appendChild(inp);
+    wrap.appendChild(okBtn);
+    wrap.appendChild(cancelBtn);
+    btn.parentNode?.appendChild(wrap);
+    setTimeout(() => inp.focus(), 50);
   });
 
   loadDirectory();

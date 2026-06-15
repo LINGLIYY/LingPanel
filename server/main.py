@@ -111,10 +111,13 @@ def create_app() -> FastAPI:
     # ── Static files ──
     css_dir = STATIC_DIR / "css"
     js_dir = STATIC_DIR / "js"
+    dame_dir = STATIC_DIR / "dame"
     if css_dir.exists():
         app.mount("/css", StaticFiles(directory=str(css_dir)), name="css")
     if js_dir.exists():
         app.mount("/js", StaticFiles(directory=str(js_dir)), name="js")
+    if dame_dir.exists():
+        app.mount("/dame", StaticFiles(directory=str(dame_dir)), name="dame")
 
     index_html = STATIC_DIR / "index.html"
     if index_html.exists():

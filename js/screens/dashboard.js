@@ -11,8 +11,8 @@ import { disconnect } from '../ws.js';
 import { icon } from '../utils/icons.js';
 import { initControlBar } from '../utils/control-bar.js';
 
-// Track which tabs have been loaded (lazy)
-const _tabLoaded = {};
+// Track which tabs have been loaded (lazy) — stores module reference for cleanup access
+const _tabModule = {};
 // Active tab's cleanup function (called before switching away)
 let _activeCleanup = null;
 
@@ -20,7 +20,7 @@ let _activeCleanup = null;
 const TAB_DEFS = [
   { name: 'overview',  label: '总览',   active: true },
   { name: 'processes', label: '进程',   active: false },
-  { name: 'services',  label: '服务',   active: false },
+  { name: 'services',  label: '系统服务', active: false },
   { name: 'files',     label: '文件',   active: false },
   { name: 'docker',    label: 'Docker', active: false },
   { name: 'terminal',  label: '终端',   active: false },
@@ -37,6 +37,7 @@ export function renderDashboard() {
 
   app.innerHTML = '';
   app.className = 'app';
+  app.style.cssText = '';
 
   // ── Header ──
   app.appendChild(_buildHeader());
@@ -57,6 +58,9 @@ export function renderDashboard() {
 
   // ── Toast container ──
   app.appendChild(el('div', { class: 'toast-container', id: 'toast-container' }));
+
+  // ── Shared service modal (used by overview launchpad + services tab) ──
+  app.appendChild(_buildServiceModal());
 
   // ── Bindings ──
   _bindTabs();
@@ -119,6 +123,43 @@ function _buildStatusBar() {
     ),
     el('div', { class: 'statusbar__right' },
       el('span', { id: 'status-tz' }, Intl.DateTimeFormat().resolvedOptions().timeZone),
+    ),
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Shared service modal (used by overview launchpad + services tab)
+// ═══════════════════════════════════════════════════════════
+
+function _buildServiceModal() {
+  return el('div', { class: 'modal-backdrop', id: 'service-modal', 'aria-modal': 'true', role: 'dialog', 'aria-hidden': 'true' },
+    el('div', { class: 'modal-shell' },
+      el('div', { class: 'modal-card' },
+        el('h2', { id: 'service-modal-title' }, el('span', { class: 'prompt' }, '$'), ' ssh-add quick'),
+        el('div', { class: 'modal-field' },
+          el('label', { class: 'modal-field__label' }, '名称'),
+          el('input', { id: 'svc-name', class: 'modal-field__input', placeholder: '服务名称', maxlength: 20 }),
+        ),
+        el('div', { class: 'modal-field' },
+          el('label', { class: 'modal-field__label' }, 'URL'),
+          el('input', { id: 'svc-url', class: 'modal-field__input', placeholder: 'https://...', type: 'url' }),
+        ),
+        el('div', { class: 'modal-field' },
+          el('label', { class: 'modal-field__label' }, '描述'),
+          el('input', { id: 'svc-desc', class: 'modal-field__input', placeholder: '简短描述', maxlength: 30 }),
+        ),
+        el('input', { type: 'hidden', id: 'svc-edit-id' }),
+        el('div', { class: 'modal-actions' },
+          el('button', { class: 'panel__btn', id: 'modal-cancel', onClick: () => {
+            const bd = document.getElementById('service-modal');
+            if (bd) { bd.classList.add('closing'); bd.setAttribute('aria-hidden', 'true');
+              setTimeout(() => bd.classList.remove('open', 'closing'), 200); }
+          } }, '取消'),
+          el('button', { class: 'panel__btn panel__btn--primary', id: 'modal-submit', onClick: () => {
+            if (typeof window._svcTabSubmit === 'function') window._svcTabSubmit();
+          } }, '添加入口'),
+        ),
+      ),
     ),
   );
 }
@@ -199,19 +240,22 @@ function switchTab(name) {
 }
 
 async function loadTab(name) {
-  if (_tabLoaded[name]) return;
-  _tabLoaded[name] = true;
+  // Return cached module if already loaded
+  if (_tabModule[name]) return _tabModule[name];
 
   const panel = document.getElementById(`tab-${name}`);
-  if (!panel) return;
+  if (!panel) return null;
 
   try {
     const fnName = 'render' + name[0].toUpperCase() + name.slice(1);
     const mod = await import(`../tabs/${name}.js`);
     mod[fnName](panel);
+    _tabModule[name] = mod;
+    return mod;
   } catch (e) {
     console.error(`Failed to load tab ${name}:`, e);
     panel.innerHTML = `<div class="status-msg" style="color:var(--red)">加载失败: ${e.message}</div>`;
+    return null;
   }
 }
 
@@ -233,6 +277,14 @@ function _bindHeaderActions() {
       disconnect();
       await logout();
       emit('navigate', 'login');
+    });
+  }
+  // Notification bell → switch to alerts tab
+  const btnNotify = $('#btn-notify');
+  if (btnNotify) {
+    btnNotify.addEventListener('click', () => {
+      window.location.hash = '#alerts';
+      switchTab('alerts');
     });
   }
 }
@@ -311,7 +363,6 @@ function _themeRipple(btn, targetTheme) {
   }, 150);
 
   setTimeout(() => reveal.classList.remove('active'), 600);
-}
 }
 
 // ═══════════════════════════════════════════════════════════

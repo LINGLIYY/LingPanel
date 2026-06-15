@@ -9,6 +9,7 @@ import { el, clear, $ } from '../utils/dom.js';
 import { get, del } from '../api.js';
 import { icon } from '../utils/icons.js';
 import { notify } from '../utils/notify.js';
+import { confirm } from '../utils/confirm.js';
 
 const WS_BASE = (() => {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -270,7 +271,7 @@ function idleLabel(seconds) {
 }
 
 async function killSession(sessionId) {
-  if (!confirm(`确定终止会话 ${sessionId}？`)) return;
+  if (!await confirm(`确定终止会话 ${sessionId}？`)) return;
   try {
     await del(`/api/terminal/sessions/${sessionId}`);
     notify.info(`已终止: ${sessionId}`);
@@ -568,15 +569,15 @@ function showContextMenu(x, y) {
 
 function menuItem(html, onClick) {
   return el('div', {
-    style: 'padding:6px 12px;cursor:pointer;color:var(--color-text-body);display:flex;align-items:center;gap:6px;',
+    style: 'padding:6px 12px;cursor:pointer;color:var(--t-body);display:flex;align-items:center;gap:6px;',
     html,
-    onMouseEnter(e) { e.target.style.background = 'var(--color-primary-soft)'; },
+    onMouseEnter(e) { e.target.style.background = 'oklch(0.55 0.18 255 / 0.10)'; },
     onMouseLeave(e) { e.target.style.background = ''; },
     onClick() {
       document.querySelector('.terminal-context-menu')?.remove();
       onClick();
     },
-  }, label);
+  });
 }
 
 function copySelection() {

@@ -54,7 +54,7 @@ async function loadAll() {
     const bar = $('#docker-info');
     if (bar && info) {
       bar.innerHTML = `<span style="font-size:12px;color:var(--t-muted);">
-        Docker ${info.version || '--'} ·
+        Docker ${info.server_version || info.version || '--'} ·
         容器: ${info.containers_running || 0} 运行 / ${info.containers_total || 0} 总计 ·
         镜像: ${info.images || 0}
       </span>`;
@@ -157,8 +157,8 @@ function renderImages(images, body) {
   body.innerHTML = `<div class="svc-grid">${images.map(i => `<div class="svc-mgmt-card">
     <span class="svc-mgmt-card__icon">📦</span>
     <span class="svc-mgmt-card__body">
-      <div class="svc-mgmt-card__name">${_esc(i.tags?.[0] || i.repository || i.id?.substring(0, 12) || '--')}</div>
-      <div class="svc-mgmt-card__desc">${_esc(i.created || '')} · ${_esc(i.size || '')}</div>
+      <div class="svc-mgmt-card__name">${_esc(i.tag || i.tags?.[0] || i.repository || i.id?.substring(0, 12) || '--')}</div>
+      <div class="svc-mgmt-card__desc">${_esc(i.created || '')} · ${_esc(i.size_bytes || i.size || '')}</div>
     </span>
   </div>`).join('')}</div>`;
 }
