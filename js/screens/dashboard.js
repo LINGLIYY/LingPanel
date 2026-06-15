@@ -9,6 +9,7 @@ import { on, emit, setTab, appState } from '../state.js';
 import { logout } from '../auth.js';
 import { disconnect } from '../ws.js';
 import { icon } from '../utils/icons.js';
+import { initControlBar } from '../utils/control-bar.js';
 
 // Track which tabs have been loaded (lazy)
 const _tabLoaded = {};
@@ -65,6 +66,9 @@ export function renderDashboard() {
 
   // ── Init tabs ──
   initTabs();
+
+  // ── Init control bar (background layer toggles) ──
+  initControlBar();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -275,13 +279,39 @@ function _initTheme() {
     btn.addEventListener('click', () => {
       const current = document.documentElement.getAttribute('data-theme');
       const next = current === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next);
-      appState.theme = next;
-      localStorage.setItem('ling-theme', next);
+      _themeRipple(btn, next);
       btn.innerHTML = next === 'dark' ? icon('moon') : icon('sun');
       emit('theme:change', { theme: next });
     });
   }
+}
+
+function _themeRipple(btn, targetTheme) {
+  const reveal = document.getElementById('theme-reveal');
+  if (!reveal) return;
+
+  const btnRect = btn.getBoundingClientRect();
+  const size = 16;
+  reveal.style.left = (btnRect.left + btnRect.width / 2) + 'px';
+  reveal.style.top = (btnRect.top + btnRect.height / 2) + 'px';
+  reveal.style.width = size + 'px';
+  reveal.style.height = size + 'px';
+  reveal.style.marginLeft = -(size / 2) + 'px';
+  reveal.style.marginTop = -(size / 2) + 'px';
+
+  const isLight = targetTheme === 'light';
+  reveal.className = 'theme-reveal ' + (isLight ? 'theme-reveal--light' : 'theme-reveal--dark');
+  reveal.classList.add('active');
+
+  setTimeout(() => {
+    document.documentElement.setAttribute('data-theme', targetTheme);
+    appState.theme = targetTheme;
+    localStorage.setItem('ling-theme', targetTheme);
+    if (window._updateImageForTheme) window._updateImageForTheme();
+  }, 150);
+
+  setTimeout(() => reveal.classList.remove('active'), 600);
+}
 }
 
 // ═══════════════════════════════════════════════════════════
