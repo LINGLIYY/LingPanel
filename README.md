@@ -85,32 +85,8 @@ ling-server-dashboard/
 ├── index.html              # 单页入口
 ├── start.py                # 统一启动器（跨平台）
 ├── start.sh / start.bat    # 平台启动脚本
-├── .claude/                # Claude Code 配置（指南/记忆/工作流）
 ├── .env.example            # 环境变量参考
 ```
-
-## 文档
-
-| 文件 | 用途 | 版本控制 |
-|------|------|---------|
-| `README.md` | 项目说明（本文档） | ✓ 纳入 |
-| `.claude/CLAUDE.md` | Claude Code 编程指南（架构/约定/陷阱） | 本地仅存 |
-| `.claude/MEMORY.md` | 记忆索引——跨会话持久化知识 | 本地仅存 |
-| `.claude/memory/` | 记忆文件——项目关键知识与经验沉淀 | 本地仅存 |
-| `.env.example` | 环境变量参考模板 | ✓ 纳入 |
-| `.gitignore` | Git 忽略规则 | ✓ 纳入 |
-
-### 关于 Memory 系统
-
-`memory/` 目录（位于 `.claude/memory/`）是 **Claude Code 持久化记忆系统**，用于在多次对话之间保留关键项目知识。每个记忆文件记录一个独立的经验事实：
-
-- **内容类型** — 已解决的 Bug 模式、架构决策的来龙去脉、容易被遗忘的约束条件
-- **索引方式** — `.claude/MEMORY.md` 作为目录索引，每行指向一个记忆文件
-- **自动调取** — 新会话启动时，Claude Code 自动加载 `MEMORY.md`，根据当前任务匹配相关记忆
-- **本地仅存** — `.claude/` 整目录不纳入版本控制，属于开发者个人知识库
-
-示例记忆条目（[ws-double-accept-footgun](.claude/memory/ws-double-accept-footgun.md)）：
-> WebSocket 重复调用 `ws.accept()` 会导致 `RuntimeError` 并静默断开连接。修复方式是将 accept 职责统一交给调用方，`ConnectionManager.connect()` 内部不再 accept。
 
 ## 设计原则
 
