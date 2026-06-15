@@ -75,7 +75,7 @@ const terminal = {
       if (typeof e.data === 'string') {
         try {
           const msg = JSON.parse(e.data);
-          if (msg && typeof msg === 'object' && 'msg' in msg) {
+          if (msg && typeof msg === 'object' && 'type' in msg) {
             if (_termCallbacks.onControl) _termCallbacks.onControl(msg);
             return;
           }
@@ -85,7 +85,9 @@ const terminal = {
     };
 
     _termWs.onclose = (e) => {
-      _termWs = null;
+      // Only nullify if this socket is still the active one
+      // (stale close events from a previous connection must not overwrite a new one)
+      if (_termWs === e.target) _termWs = null;
       if (_termCallbacks.onClose) _termCallbacks.onClose(e.code, e.reason);
     };
 

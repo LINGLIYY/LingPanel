@@ -79,11 +79,13 @@ function _doConnect() {
 
       if (msg.type === 'metric') {
         setMetrics(msg);
+        return;
       }
 
       if (msg.type === 'alert') {
-        notify.warn(`[${msg.level}] ${msg.message}`);
+        notify.warn(`[${msg.level ?? 'info'}] ${msg.message ?? ''}`);
         emit('alert', msg);
+        return;
       }
     } catch (err) {
       // Non-JSON message, ignore

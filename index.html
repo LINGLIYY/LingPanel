@@ -8,10 +8,10 @@
 <meta name="color-scheme" content="dark light">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23111827'/%3E%3Ccircle cx='16' cy='16' r='8' fill='%2322c55e'/%3E%3C/svg%3E">
 
-<!-- Fonts -->
+<!-- Fonts — async load so blocked CDN doesn't stall page render in China -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 
 <!-- Design System -->
 <link rel="stylesheet" href="css/tokens.css">
@@ -22,8 +22,8 @@
 <link rel="stylesheet" href="css/themes/dark.css">
 <link rel="stylesheet" href="css/themes/light.css">
 
-<!-- Chart.js CDN -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<!-- Chart.js CDN (deferred — not needed until overview tab opens) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 
 <!-- xterm.js loaded lazily in js/tabs/terminal.js -->
 </head>
@@ -38,8 +38,8 @@
 
   <!-- L0: Image background (dual dark/light) -->
   <div class="bg-image-wrap">
-    <img class="bg-img-dark" src="dame/登录页/bg-image.jpg" alt="" aria-hidden="true">
-    <img class="bg-img-light" src="dame/登录页/bg-image-light.png" alt="" aria-hidden="true">
+    <img class="bg-img-dark" src="dame/登录页/bg-image.jpg" alt="" aria-hidden="true" decoding="async">
+    <img class="bg-img-light" src="dame/登录页/bg-image-light.png" alt="" aria-hidden="true" decoding="async">
   </div>
   <div class="bg-image-glow"></div>
 

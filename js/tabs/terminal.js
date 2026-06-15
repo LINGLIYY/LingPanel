@@ -354,7 +354,7 @@ async function initXterm() {
 
   // Resize forwarding
   _terminal.onResize(({ cols, rows }) => {
-    if (_activeWs && _activeWs.readyState === WebSocket.OPEN) {
+    if (comm.terminal.isOpen) {
 comm.terminal.send(JSON.stringify({ type: 'resize', cols, rows }));
     }
   });
@@ -370,8 +370,8 @@ comm.terminal.send(JSON.stringify({ type: 'resize', cols, rows }));
 
   // Input → WebSocket
   _terminal.onData((data) => {
-    if (_activeWs && _activeWs.readyState === WebSocket.OPEN) {
-      if (!_hasPty) _terminal.write(data);  // local echo for pipe mode
+    if (comm.terminal.isOpen) {
+      if (!_hasPty) _terminal?.write(data);  // local echo for pipe mode
       comm.terminal.send(data);
     }
   });
@@ -396,7 +396,7 @@ comm.terminal.send(JSON.stringify({ type: 'resize', cols, rows }));
     showContextMenu(e.clientX, e.clientY);
   });
 
-  setTimeout(() => _terminal.focus(), 300);
+  setTimeout(() => _terminal?.focus(), 300);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -566,7 +566,7 @@ function copySelection() {
 function pasteClipboard() {
   navigator.clipboard.readText()
     .then(text => {
-      if (_activeWs && _activeWs.readyState === WebSocket.OPEN && text) {
+      if (comm.terminal.isOpen && text) {
         comm.terminal.send(text);
       }
     })
@@ -575,7 +575,7 @@ function pasteClipboard() {
 
 function clearScreen() {
   _terminal?.clear();
-  if (_activeWs && _activeWs.readyState === WebSocket.OPEN) {
+  if (comm.terminal.isOpen) {
     comm.terminal.send('\x0c');
   }
 }
@@ -714,8 +714,8 @@ export function cleanup() {
     clearInterval(_sessionRefreshTimer);
     _sessionRefreshTimer = null;
   }
-  if (_activeWs) {
-comm.terminal.disconnect();
+  if (comm.terminal.isOpen) {
+    comm.terminal.disconnect();
   }
   if (_resizeObserver) {
     _resizeObserver.disconnect();
