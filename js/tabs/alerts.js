@@ -7,10 +7,11 @@
  * Data: REST /api/alerts/* + WS /ws/live alert events
  */
 import { el, clear, $ } from '../utils/dom.js';
-import { get, post, put, del as apiDel } from '../api.js';
+import { comm } from '../comm.js';
+const { get, post, put, del: apiDel } = comm.rest;
+const { on, off } = comm;
 import { notify } from '../utils/notify.js';
 import { confirm } from '../utils/confirm.js';
-import { on, off } from '../state.js';
 import { icon } from '../utils/icons.js';
 import { dateShort } from '../utils/format.js';
 

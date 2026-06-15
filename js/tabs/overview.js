@@ -6,8 +6,8 @@
  * Data: WebSocket /ws/live + localStorage for launchpad.
  */
 import { el, clear, $ } from '../utils/dom.js';
-import { on, off, appState } from '../state.js';
-import { connect } from '../ws.js';
+import { comm } from '../comm.js';
+const { on, off } = comm;
 import { uptime, percent, bytesPerSec, bytes } from '../utils/format.js';
 
 let _initialized = false;
@@ -119,7 +119,7 @@ export async function renderOverview(container) {
   _stopCanvasPolling = false;
 
   // ── Connect WebSocket ──
-  if (appState.wsStatus === 'disconnected') connect(['system']);
+  if (comm.state.wsStatus === 'disconnected') comm.live.connect(['system']);
 
   // ── Init launchpad ──
   initLaunchpad();

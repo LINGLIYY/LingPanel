@@ -112,6 +112,12 @@ async def ws_live(ws: WebSocket):
         await ws.close(code=4001, reason="Unauthorized")
         return
 
+    # ── Get EventBus from app state ──
+    event_bus = ws.app.state.event_bus if hasattr(ws.app.state, "event_bus") else None
+    if event_bus is None:
+        await ws.close(code=1011, reason="EventBus not available")
+        return
+
     conn_id = await manager.connect(ws)
 
     try:
@@ -126,13 +132,20 @@ async def ws_live(ws: WebSocket):
 
         manager.subscribe(conn_id, channels)
 
-        # Push loop — 1s interval
+        # Subscribe to EventBus queue for in-process metric events
+        metric_queue = event_bus.subscribe_queue("system", maxsize=64)
+
+        # Push loop — consume MetricEvents from EventBus
         while True:
             try:
-                data = _collect_system()
-                data["type"] = "metric"
+                data = await asyncio.wait_for(metric_queue.get(), timeout=5.0)
                 await ws.send_json(data)
-                await asyncio.sleep(1)
+            except asyncio.TimeoutError:
+                # No metrics in 5s — send a ping to keep connection alive
+                try:
+                    await ws.send_json({"type": "ping", "ts": int(time.time())})
+                except WebSocketDisconnect:
+                    break
             except WebSocketDisconnect:
                 break
             except Exception:
@@ -141,4 +154,6 @@ async def ws_live(ws: WebSocket):
     except WebSocketDisconnect:
         pass
     finally:
+        if event_bus:
+            event_bus.unsubscribe_queue("system", metric_queue)
         manager.disconnect(conn_id)

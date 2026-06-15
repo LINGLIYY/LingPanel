@@ -73,22 +73,41 @@ def create_app() -> FastAPI:
     # ── Lifecycle ──
     @asynccontextmanager
     async def lifespan(ap: FastAPI):
-        import asyncio as _aio
         from server.routers.terminal import idle_checker
-        from server.services.alert_engine import alert_loop
-        _aio.create_task(idle_checker())
-        _aio.create_task(alert_loop(30))
-        # Rate limiter: purge stale keys every 5 minutes
-        _aio.create_task(_rate_limit_cleanup_loop(ap.state.limiter, interval=300))
-        # Metrics history: prune old data per retention config
-        _aio.create_task(_metrics_cleanup_loop())
+        from server.services.alert_engine import alert_loop, set_event_bus
+        from server.services.metric_collector import MetricCollector
+        from server.services.lifecycle import LifecycleCoordinator
+        from server.ws import manager
+        from server.events import EventBus
+
+        # ── Create EventBus singleton (wraps WS manager) ──
+        event_bus = EventBus(manager)
+        ap.state.event_bus = event_bus
+
+        # ── Inject into services that need it ──
+        set_event_bus(event_bus)
+
+        # ── Lifecycle coordinator ──
+        coordinator = LifecycleCoordinator()
+
+        # ── Start background tasks (order = dependency order) ──
+        coordinator.register(idle_checker())
+        coordinator.register(alert_loop(30))
+        coordinator.register(MetricCollector(event_bus, interval=1.0).run())
+        coordinator.register(_rate_limit_cleanup_loop(ap.state.limiter, interval=300))
+        coordinator.register(_metrics_cleanup_loop())
+        coordinator.register(manager.heartbeat_loop())
+
         yield
+
+        # ── Coordinated shutdown ──
+        await coordinator.shutdown()
+
         # Only close file-based DBs; :memory: is shared across app instances
         from server.config import DB_PATH as _db_path
         from server.models.database import _shared_conn
         if _db_path != ":memory:" and hasattr(ap.state, "db") and ap.state.db:
             ap.state.db.close()
-            # Reset shared conn so next app creates a fresh one
             import server.models.database as _db_mod
             _db_mod._shared_conn = None
 

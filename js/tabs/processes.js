@@ -5,7 +5,8 @@
  * Data: GET /api/processes + DELETE /api/processes/{pid}
  */
 import { el, clear, $ } from '../utils/dom.js';
-import { get, del } from '../api.js';
+import { comm } from '../comm.js';
+const { get, del } = comm.rest;
 import { notify } from '../utils/notify.js';
 import { confirm } from '../utils/confirm.js';
 import { bytes, percent } from '../utils/format.js';

@@ -5,7 +5,8 @@
  * Data: GET /api/logs/sources + GET /api/logs/read
  */
 import { el, clear, $ } from '../utils/dom.js';
-import { get } from '../api.js';
+import { comm } from '../comm.js';
+const { get } = comm.rest;
 import { notify } from '../utils/notify.js';
 
 let _sources = [];

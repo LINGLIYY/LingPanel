@@ -6,20 +6,22 @@
  * Features: multi-session, attach/detach, resize, font zoom, clipboard.
  */
 import { el, clear, $ } from '../utils/dom.js';
-import { get, del } from '../api.js';
+import { comm } from '../comm.js';
+const { get, del } = comm.rest;
 import { icon } from '../utils/icons.js';
 import { notify } from '../utils/notify.js';
 import { confirm } from '../utils/confirm.js';
 
-const WS_BASE = (() => {
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${proto}//${location.host}/ws/terminal`;
-})();
-
 let _terminal = null;
 let _fitAddon = null;
 let _searchAddon = null;
-let _activeWs = null;
+let _activeSessionId = null;
+let _hasPty = false;
+let _fontSize = 13;
+let _sessionRefreshTimer = null;
+let _resizeObserver = null;
+let _termContainer = null;
+let _xtermLoading = null;
 let _activeSessionId = null;
 let _hasPty = false;
 let _fontSize = 13;
@@ -360,7 +362,7 @@ async function initXterm() {
   // Resize forwarding
   _terminal.onResize(({ cols, rows }) => {
     if (_activeWs && _activeWs.readyState === WebSocket.OPEN) {
-      _activeWs.send(JSON.stringify({ type: 'resize', cols, rows }));
+comm.terminal.send(JSON.stringify({ type: 'resize', cols, rows }));
     }
   });
 
@@ -377,7 +379,7 @@ async function initXterm() {
   _terminal.onData((data) => {
     if (_activeWs && _activeWs.readyState === WebSocket.OPEN) {
       if (!_hasPty) _terminal.write(data);  // local echo for pipe mode
-      _activeWs.send(data);
+      comm.terminal.send(data);
     }
   });
 
@@ -410,48 +412,21 @@ async function initXterm() {
 
 function connectSession(sessionId) {
   // Close current
-  if (_activeWs) {
-    try { _activeWs.close(); } catch (e) { /* ignore */ }
-    _activeWs = null;
-  }
+  comm.terminal.disconnect();
 
   _activeSessionId = sessionId || null;
   updateSessionInfo(sessionId ? `连接中 (${sessionId})...` : '连接中...');
   updatePtyBadge(false, '');
 
-  const url = sessionId
-    ? `${WS_BASE}?session_id=${encodeURIComponent(sessionId)}`
-    : WS_BASE;
-
-  try {
-    _activeWs = new WebSocket(url);
-  } catch (e) {
-    updateSessionInfo('连接失败');
-    notify.error('无法创建 WebSocket 连接');
-    return;
-  }
-
-  _activeWs.onopen = () => {
-    _terminal?.clear();
-    _terminal?.focus();
-  };
-
-  _activeWs.onmessage = (e) => {
-    if (typeof e.data !== 'string') return;
-
-    if (e.data.startsWith('{')) {
-      try {
-        const msg = JSON.parse(e.data);
-        handleControlMessage(msg);
-        return;
-      } catch (ex) { /* output */ }
-    }
-
-    _terminal?.write(e.data);
-  };
-
-  _activeWs.onclose = (e) => {
-    if (e.code === 4001) {
+  // Wire up callbacks before connecting
+  comm.terminal.onData((data) => {
+    _terminal?.write(data);
+  });
+  comm.terminal.onControl((msg) => {
+    handleControlMessage(msg);
+  });
+  comm.terminal.onClose((code) => {
+    if (code === 4001) {
       updateSessionInfo('认证失败');
       notify.error('终端连接认证失败 — 请重新登录');
     } else {
@@ -461,11 +436,18 @@ function connectSession(sessionId) {
     _hasPty = false;
     _activeSessionId = null;
     refreshSessionList();
-  };
-
-  _activeWs.onerror = () => {
+  });
+  comm.terminal.onError(() => {
     updateSessionInfo('连接错误');
-  };
+  });
+
+  // Connect — onopen clears terminal & focuses
+  comm.terminal.connect(sessionId);
+  // Short delay for WS handshake, then clear & focus
+  setTimeout(() => {
+    _terminal?.clear();
+    _terminal?.focus();
+  }, 150);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -592,7 +574,7 @@ function pasteClipboard() {
   navigator.clipboard.readText()
     .then(text => {
       if (_activeWs && _activeWs.readyState === WebSocket.OPEN && text) {
-        _activeWs.send(text);
+        comm.terminal.send(text);
       }
     })
     .catch(() => notify.warn('粘贴失败（需授权剪贴板）'));
@@ -601,7 +583,7 @@ function pasteClipboard() {
 function clearScreen() {
   _terminal?.clear();
   if (_activeWs && _activeWs.readyState === WebSocket.OPEN) {
-    _activeWs.send('\x0c');
+    comm.terminal.send('\x0c');
   }
 }
 
@@ -740,8 +722,7 @@ export function cleanup() {
     _sessionRefreshTimer = null;
   }
   if (_activeWs) {
-    try { _activeWs.close(); } catch (e) { /* ignore */ }
-    _activeWs = null;
+comm.terminal.disconnect();
   }
   if (_resizeObserver) {
     _resizeObserver.disconnect();

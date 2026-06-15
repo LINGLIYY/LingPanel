@@ -6,7 +6,8 @@
  * Data: GET /api/docker/* + POST /api/docker/containers/{id}/{action}
  */
 import { el, clear, $ } from '../utils/dom.js';
-import { get, post } from '../api.js';
+import { comm } from '../comm.js';
+const { get, post } = comm.rest;
 import { notify } from '../utils/notify.js';
 import { confirm } from '../utils/confirm.js';
 

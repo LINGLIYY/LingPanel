@@ -1,6 +1,11 @@
 /**
  * LingServer Dashboard — WebSocket Client
  *
+ * @deprecated Use `comm.live` from `js/comm.js` instead.
+ *   import { comm } from '../comm.js';
+ *   comm.live.connect(['system']);
+ *   comm.live.disconnect();
+ *
  * Features:
  *  - Exponential backoff reconnection (1s → 2s → 4s → max 30s)
  *  - Auto-resubscribe on reconnect

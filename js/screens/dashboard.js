@@ -5,9 +5,9 @@
  * Delegates tab content to individual tab modules.
  */
 import { el, $, $$, setText } from '../utils/dom.js';
-import { on, emit, setTab, appState } from '../state.js';
+import { emit, setTab } from '../state.js';
+import { comm } from '../comm.js';
 import { logout } from '../auth.js';
-import { disconnect } from '../ws.js';
 import { icon } from '../utils/icons.js';
 import { initControlBar } from '../utils/control-bar.js';
 
@@ -274,7 +274,7 @@ function _bindHeaderActions() {
   const btnLogout = $('#btn-logout');
   if (btnLogout) {
     btnLogout.addEventListener('click', async () => {
-      disconnect();
+      comm.live.disconnect();
       await logout();
       emit('navigate', 'login');
     });
@@ -318,16 +318,16 @@ function _initTheme() {
   const saved = localStorage.getItem('ling-theme');
   if (saved) {
     document.documentElement.setAttribute('data-theme', saved);
-    appState.theme = saved;
+    comm.state.theme = saved;
   } else {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-    appState.theme = prefersDark ? 'dark' : 'light';
+    comm.state.theme = prefersDark ? 'dark' : 'light';
   }
 
   const btn = $('#btn-theme');
   if (btn) {
-    btn.innerHTML = appState.theme === 'dark' ? icon('moon') : icon('sun');
+    btn.innerHTML = comm.state.theme === 'dark' ? icon('moon') : icon('sun');
     btn.addEventListener('click', () => {
       const current = document.documentElement.getAttribute('data-theme');
       const next = current === 'dark' ? 'light' : 'dark';
@@ -357,7 +357,7 @@ function _themeRipple(btn, targetTheme) {
 
   setTimeout(() => {
     document.documentElement.setAttribute('data-theme', targetTheme);
-    appState.theme = targetTheme;
+    comm.state.theme = targetTheme;
     localStorage.setItem('ling-theme', targetTheme);
     if (window._updateImageForTheme) window._updateImageForTheme();
   }, 150);
@@ -372,7 +372,7 @@ function _themeRipple(btn, targetTheme) {
 // Cache status DOM elements once
 let _wsDot = null, _wsText = null, _wsHeaderDot = null;
 
-on('ws:change', ({ status }) => {
+comm.on('ws:change', ({ status }) => {
   // Lazy-init cached refs (DOM is ready when this first fires)
   if (!_wsDot) _wsDot = $('#ws-status-dot');
   if (!_wsText) _wsText = $('#ws-status-text');

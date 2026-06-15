@@ -5,10 +5,9 @@
  * All heavy lifting delegated to screen modules.
  */
 import { checkAuth } from './auth.js';
-import { on } from './state.js';
+import { comm } from './comm.js';
 import { renderLogin } from './screens/login.js';
 import { renderDashboard } from './screens/dashboard.js';
-import { disconnect } from './ws.js';
 import { setStatus } from './utils/notify.js';
 
 // ═══════════════════════════════════════════════════════════
@@ -64,13 +63,13 @@ async function bootstrap() {
   }
 
   // ── Navigation ──
-  on('navigate', (target) => {
+  comm.on('navigate', (target) => {
     if (target === 'dashboard') {
-      disconnect(); // clean up any stale WS
+      comm.live.disconnect(); // clean up any stale WS
       renderDashboard();
       setStatus(`就绪 · ${new Date().toLocaleTimeString('zh-CN', { hour12: false })}`);
     } else if (target === 'login') {
-      disconnect();
+      comm.live.disconnect();
       renderLogin();
     }
   });

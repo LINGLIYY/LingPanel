@@ -12,7 +12,6 @@ from datetime import datetime
 from typing import Any
 
 from server.models.database import get_db
-from server.ws import manager
 
 # Track active alerts to prevent re-firing
 # {rule_id: {"fired_at": ts, "value": x}}
@@ -170,7 +169,17 @@ async def _fire_alert(rule: dict, actual_value: float):
         "message": message,
         "level": "critical",
     }
-    await manager.broadcast("system", alert_data)
+    from server.events import AlertEvent
+    _event_bus = _get_event_bus()
+    await _event_bus.publish(AlertEvent(
+        rule_name=rule["name"],
+        metric=rule["metric"],
+        threshold=rule["threshold"],
+        actual_value=actual_value,
+        message=message,
+        level="critical",
+        alert_id=alert_id,
+    ))
 
     # Webhook
     if rule["action_type"] == "webhook" and rule["action_config"]:
@@ -201,14 +210,16 @@ async def _recover_alert(rule: dict, actual_value: float):
     _active_alerts.pop(rule["id"], None)
 
     # Browser push recovery
-    await manager.broadcast("system", {
-        "type": "alert",
-        "rule_name": rule["name"],
-        "metric": rule["metric"],
-        "actual_value": actual_value,
-        "message": message,
-        "level": "info",
-    })
+    from server.events import AlertEvent
+    _event_bus = _get_event_bus()
+    await _event_bus.publish(AlertEvent(
+        rule_name=rule["name"],
+        metric=rule["metric"],
+        threshold=rule["threshold"],
+        actual_value=actual_value,
+        message=message,
+        level="info",
+    ))
 
     # Webhook for recovery too
     if rule["action_type"] == "webhook" and rule["action_config"]:
@@ -228,6 +239,24 @@ async def _send_webhook(url: str, data: dict):
 # ═══════════════════════════════════════════════════════════
 #  Background loop
 # ═══════════════════════════════════════════════════════════
+
+# EventBus instance — injected by main.py during app startup.
+# Alert engine reads it lazily to avoid import-time coupling.
+_event_bus = None
+
+
+def set_event_bus(bus):
+    """Called by main.py lifecycle to inject the EventBus singleton."""
+    global _event_bus
+    _event_bus = bus
+
+
+def _get_event_bus():
+    """Return the EventBus singleton, raising if not yet injected."""
+    if _event_bus is None:
+        raise RuntimeError("EventBus not injected — call set_event_bus() during startup")
+    return _event_bus
+
 
 async def alert_loop(interval: float = 30.0):
     """Run alert evaluation every `interval` seconds."""

@@ -6,7 +6,8 @@
  * Data: GET /api/files + PUT /api/files/save + POST upload/mkdir + DELETE
  */
 import { el, clear, $ } from '../utils/dom.js';
-import { get, post, put, del } from '../api.js';
+import { comm } from '../comm.js';
+const { get, post, put, del } = comm.rest;
 import { notify } from '../utils/notify.js';
 import { confirm } from '../utils/confirm.js';
 import { bytes } from '../utils/format.js';

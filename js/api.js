@@ -1,6 +1,10 @@
 /**
  * LingServer Dashboard — API Client
  *
+ * @deprecated Use `comm.rest` from `js/comm.js` instead.
+ *   import { comm } from '../comm.js';
+ *   const { get, post, put, del } = comm.rest;
+ *
  * Fetch wrapper with:
  *  - Auto CSRF from cookie
  *  - 401 → refresh token → retry once
