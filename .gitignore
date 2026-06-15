@@ -1,0 +1,80 @@
+# ============================================================
+# LingServer Dashboard — .gitignore
+# Ubuntu 部署目标 · Windows 开发环境
+# ============================================================
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+.uv/
+
+# ── Pytest ──
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+
+# ── SQLite Database ──
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ── Environment / Secrets ──
+.env
+.env.local
+.env.*.local
+.admin-pw
+*.key
+*.pem
+!deploy/*.pem
+
+# ── IDE / Editor ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+\#*\#
+.\#*
+
+# ── OS Junk ──
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ── Logs & Runtime ──
+*.log
+*.pid
+*.out
+nohup.out
+
+# ── Node / npm (if frontend tooling added later) ──
+node_modules/
+.npm/
+package-lock.json
+yarn.lock
+
+# ── Documentation, assets, reference materials ──
+图片/
+
+# ── Claude Code（仅排除本地设置，保留项目文档）──
+.claude/settings.local.json
+
+# ── Misc ──
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig

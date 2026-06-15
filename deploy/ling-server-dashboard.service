@@ -1,0 +1,35 @@
+# LingServer Dashboard — Systemd service
+# Place at: /etc/systemd/system/ling-server-dashboard.service
+# Enable:    systemctl enable ling-server-dashboard
+# Start:     systemctl start ling-server-dashboard
+
+[Unit]
+Description=LingServer Dashboard — Server Operations Panel
+After=network.target docker.service
+
+[Service]
+Type=simple
+User=ling
+Group=ling
+WorkingDirectory=/opt/ling-server-dashboard
+ExecStart=/opt/ling-server-dashboard/venv/bin/python -m uvicorn server.main:app --host 127.0.0.1 --port 8899
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ling-server-dashboard
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/ling-server-dashboard /var/log
+ReadOnlyPaths=/etc /usr
+
+# Resource limits
+LimitNOFILE=4096
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target

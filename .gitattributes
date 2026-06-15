@@ -1,0 +1,37 @@
+# ============================================================
+# LingServer Dashboard — .gitattributes
+# 统一换行符：Windows 开发 / Ubuntu 部署 → 全部 LF
+# ============================================================
+
+# Auto-detect text files
+* text=auto
+
+# Source code — always LF
+*.py   text eol=lf
+*.js   text eol=lf
+*.css  text eol=lf
+*.html text eol=lf
+*.sh   text eol=lf
+*.md   text eol=lf
+*.txt  text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.toml text eol=lf
+*.cfg  text eol=lf
+*.ini  text eol=lf
+*.conf text eol=lf
+*.bat  text eol=crlf
+
+# Binary
+*.db   binary
+*.db-shm binary
+*.db-wal binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.woff binary
+*.woff2 binary
+*.ttf  binary
+*.eot  binary
