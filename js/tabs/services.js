@@ -1,159 +1,241 @@
 /**
- * LingServer Dashboard — Services Tab
+ * LingServer Dashboard — Services Tab (dame graft)
  *
- * Service status cards with start/stop/restart actions.
- * API: GET /api/services, POST /api/services/{name}/{action}
+ * Service management cards with dot indicators, start/stop/restart,
+ * plus custom service CRUD (localStorage-backed).
+ *
+ * Data: GET /api/services + POST /api/services/{name}/{action}
  */
 import { el, clear, $ } from '../utils/dom.js';
 import { get, post } from '../api.js';
 import { notify } from '../utils/notify.js';
-import { icon, iconLabel } from '../utils/icons.js';
+import { confirm } from '../utils/confirm.js';
+import { icon } from '../utils/icons.js';
 
 let _refreshTimer = null;
 
-const SERVICE_ICONS = {
-  nginx: 'globe',
-  docker: 'docker',
-  mysql: 'database',
-  'redis-server': 'activity',
-  ssh: 'shield',
-  cron: 'clock',
-};
+const STATUS_LABELS = { active: '运行中', inactive: '已停止', failed: '异常', unknown: '未知' };
 
-const STATUS_LABELS = {
-  active: '运行中',
-  inactive: '已停止',
-  failed: '异常',
-  unknown: '未知',
-};
-
-/**
- * Render the services tab.
- */
 export async function renderServices(container) {
   clear(container);
 
-  // Header
-  container.appendChild(el('div', {
-    style: 'display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;',
-  },
-    el('span', { style: 'font-size:14px;font-weight:600;color:var(--color-text-heading);' }, '服务管理'),
-    el('button', { class: 'btn btn-ghost btn-sm', onClick: loadServices, html: iconLabel('refresh', '刷新')}),
-  ));
+  // ── Panel header ──
+  const header = el('div', { class: 'panel__header' },
+    el('h2', { class: 'panel__title' },
+      el('span', { class: 'prompt' }, '$'),
+      ' systemctl list-units',
+    ),
+    el('div', { class: 'panel__actions' },
+      el('button', { class: 'panel__btn panel__btn--primary', id: 'svc-add' }, '+ 新建'),
+      el('button', { class: 'panel__btn', id: 'svc-refresh', onClick: loadServices, html: icon('refresh') }),
+    ),
+  );
 
-  // Service grid
-  const grid = el('div', {
-    id: 'services-grid',
-    style: 'display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;',
-  });
-  container.appendChild(grid);
+  // ── System services section ──
+  const body = el('div', { class: 'panel__body', id: 'svc-body' },
+    el('div', { id: 'svc-system-grid' }),
+    el('div', { style: 'margin-top:12px;border-top:1px solid var(--card-inner-border);padding-top:12px;',
+      id: 'svc-custom-section' },
+      el('div', { style: 'font-size:11px;color:var(--t-muted);margin-bottom:6px;' }, '自定义服务'),
+      el('div', { class: 'svc-grid', id: 'svc-custom-grid' }),
+    ),
+  );
 
-  // Info banner for Windows
-  container.appendChild(el('div', {
-    style: 'margin-top:16px;padding:8px 12px;background:var(--color-bg-card);border:1px solid var(--color-border);' +
-           'border-radius:6px;font-size:11px;color:var(--color-text-dim);',
-  }, `${icon('settings')} 提示：服务管理基于 systemctl，Windows 系统下显示为"未知"。部署到 Ubuntu 服务器后即可使用。`));
+  container.appendChild(el('div', { class: 'panel' }, header, body));
+
+  // Wire up add button
+  $('#svc-add')?.addEventListener('click', () => openSvcEdit(null));
 
   loadServices();
   _refreshTimer = setInterval(loadServices, 10000);
 }
 
+// ═══════════════════════════════════════════════════════════
+//  System services (real API)
+// ═══════════════════════════════════════════════════════════
+
 async function loadServices() {
+  // Load system services from API
   try {
     const data = await get('/api/services');
-    renderServiceCards(data.services || []);
+    renderSystemServices(data.services || []);
   } catch (e) {
     notify.error(`加载服务失败: ${e.message}`);
   }
+  // Also render custom services
+  renderCustomServices();
 }
 
-function renderServiceCards(services) {
-  const grid = $('#services-grid');
+function renderSystemServices(services) {
+  const grid = $('#svc-system-grid');
   if (!grid) return;
-  clear(grid);
+  if (!services.length) { grid.innerHTML = '<div class="empty-state">无系统服务</div>'; return; }
+  grid.innerHTML = '<div class="svc-grid">' + services.map(s => _svcCardHTML(s)).join('') + '</div>';
 
-  for (const svc of services) {
-    grid.appendChild(buildServiceCard(svc));
-  }
+  // Wire up action buttons
+  grid.querySelectorAll('.svc-act-start, .svc-act-stop, .svc-act-restart').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const name = btn.dataset.svcName;
+      const action = btn.classList.contains('svc-act-start') ? 'start'
+        : btn.classList.contains('svc-act-stop') ? 'stop' : 'restart';
+      const labels = { start: '启动', stop: '停止', restart: '重启' };
+      const ok = await confirm(`确定${labels[action]}服务 ${name}？`, '服务操作', 'info');
+      if (!ok) return;
+      try {
+        await post(`/api/services/${name}/${action}`);
+        notify.success(`${name}: ${labels[action]}成功`);
+        loadServices();
+      } catch (e) {
+        notify.error(`${name} ${labels[action]}失败: ${e.message}`);
+      }
+    });
+  });
 }
 
-function buildServiceCard(svc) {
+function _svcCardHTML(svc) {
   const status = svc.status || 'unknown';
-  const iconName = SERVICE_ICONS[svc.name] || 'server';
   const label = STATUS_LABELS[status] || status;
+  const dotClass = status === 'active' ? 'svc-mgmt-card__dot--active'
+    : status === 'failed' ? 'svc-mgmt-card__dot--failed' : 'svc-mgmt-card__dot--inactive';
+  const canStart = status !== 'active';
+  const canStop = status === 'active';
+  const s = _esc;
 
-  // Status color
-  let statusColor = 'var(--color-text-dim)';
-  let dotIcon = 'circle-yellow';
-  if (status === 'active') { statusColor = 'var(--color-success)'; dotIcon = 'circle-green'; }
-  else if (status === 'failed') { statusColor = 'var(--color-error)'; dotIcon = 'circle-red'; }
-  else if (status === 'unknown') { statusColor = 'var(--color-warning)'; dotIcon = 'circle-yellow'; }
-
-  const isSystemctl = status !== 'unknown';
-
-  return el('div', {
-    class: 'panel',
-    style: 'padding:16px;',
-  },
-    // Header row
-    el('div', { style: 'display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;' },
-      el('div', { style: 'display:flex;align-items:center;gap:8px;' },
-        el('span', { class: 'service-card__icon', html: icon(iconName) }),
-        el('div', {},
-          el('div', { style: 'font-size:14px;font-weight:600;color:var(--color-text-heading);' }, svc.name),
-          el('div', { style: 'font-size:11px;color:var(--color-text-muted);font-family:var(--font-mono);' }, svc.name),
-        ),
-      ),
-      el('span', {
-        style: `font-size:12px;font-weight:500;color:${statusColor};display:flex;align-items:center;gap:4px;`,
-        html: icon(dotIcon) + ' ' + label,
-      }),
-    ),
-
-    // Action buttons
-    el('div', { style: 'display:flex;gap:6px;' },
-      el('button', {
-        class: 'btn btn-sm',
-        style: 'flex:1;background:var(--color-success-muted);color:var(--color-success);border:none;',
-        disabled: !isSystemctl || status === 'active',
-        onClick: () => serviceAction(svc.name, 'start'),
-        html: icon('chevron-right') + ' 启动',
-      }),
-      el('button', {
-        class: 'btn btn-sm',
-        style: 'flex:1;background:var(--color-error-muted);color:var(--color-error);border:none;',
-        disabled: !isSystemctl || status !== 'active',
-        onClick: () => serviceAction(svc.name, 'stop'),
-        html: icon('x') + ' 停止',
-      }),
-      el('button', {
-        class: 'btn btn-sm',
-        style: 'flex:1;background:var(--color-warning-muted);color:var(--color-warning);border:none;',
-        disabled: !isSystemctl,
-        onClick: () => serviceAction(svc.name, 'restart'),
-        html: iconLabel('refresh', '重启'),
-      }),
-    ),
-  );
+  return `<div class="svc-mgmt-card">
+    <span class="svc-mgmt-card__icon">${icon('server')}</span>
+    <span class="svc-mgmt-card__dot ${dotClass}"></span>
+    <span class="svc-mgmt-card__body">
+      <div class="svc-mgmt-card__name">${s(svc.name)}</div>
+      <div class="svc-mgmt-card__desc">systemctl · ${label}</div>
+    </span>
+    <span class="svc-mgmt-card__actions">
+      ${canStart ? `<button class="panel__btn panel__btn--sm svc-act-start" data-svc-name="${s(svc.name)}">▶</button>` : ''}
+      ${canStop ? `<button class="panel__btn panel__btn--danger panel__btn--sm svc-act-stop" data-svc-name="${s(svc.name)}">■</button>` : ''}
+      <button class="panel__btn panel__btn--sm svc-act-restart" data-svc-name="${s(svc.name)}">↻</button>
+    </span>
+  </div>`;
 }
 
-async function serviceAction(name, action) {
-  const labels = { start: '启动', stop: '停止', restart: '重启' };
-  if (!confirm(`确定${labels[action]}服务 ${name}？`)) return;
+// ═══════════════════════════════════════════════════════════
+//  Custom services (localStorage CRUD — dame feature)
+// ═══════════════════════════════════════════════════════════
 
+const LS_KEY = 'ling-svc-tab';
+
+function loadCustom() {
   try {
-    await post(`/api/services/${name}/${action}`);
-    notify.success(`${name}: ${labels[action]}成功`);
-    loadServices();
-  } catch (e) {
-    notify.error(`${name} ${labels[action]}失败: ${e.message}`);
+    const raw = localStorage.getItem(LS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (_) { return []; }
+}
+
+function saveCustom(arr) { localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
+
+function renderCustomServices() {
+  const grid = $('#svc-custom-grid');
+  const section = $('#svc-custom-section');
+  if (!grid || !section) return;
+  const services = loadCustom();
+  section.style.display = services.length ? '' : 'none';
+  grid.innerHTML = services.length
+    ? '<div class="svc-grid">' + services.map(s => {
+        const dotClass = 'svc-mgmt-card__dot--inactive';
+        const sid = _esc(s.id);
+        return `<div class="svc-mgmt-card" data-svc-id="${sid}">
+          <span class="svc-mgmt-card__icon">${icon('box')}</span>
+          <span class="svc-mgmt-card__dot ${dotClass}"></span>
+          <span class="svc-mgmt-card__body">
+            <div class="svc-mgmt-card__name">${_esc(s.name)}</div>
+            <div class="svc-mgmt-card__desc">${_esc(s.desc || '')}</div>
+          </span>
+          <span class="svc-mgmt-card__actions">
+            <button class="panel__btn panel__btn--sm svc-act-edit" data-svc-edit="${sid}">✎</button>
+            <button class="panel__btn panel__btn--sm svc-act-delete" data-svc-del="${sid}" style="color:var(--red)">✕</button>
+          </span>
+        </div>`;
+      }).join('') + '</div>'
+    : '';
+
+  // Wire up edit/delete
+  grid.querySelectorAll('[data-svc-edit]').forEach(b => {
+    b.addEventListener('click', () => {
+      const svc = loadCustom().find(s => s.id === b.dataset.svcEdit);
+      if (svc) openSvcEdit(svc);
+    });
+  });
+  grid.querySelectorAll('[data-svc-del]').forEach(b => {
+    b.addEventListener('click', async () => {
+      const id = b.dataset.svcDel;
+      const svc = loadCustom().find(s => s.id === id);
+      const ok = await confirm(`确定删除服务 ${svc?.name || ''}？`, '删除服务');
+      if (!ok) return;
+      saveCustom(loadCustom().filter(s => s.id !== id));
+      renderCustomServices();
+      notify.info(`${svc?.name || ''} 已删除`);
+    });
+  });
+}
+
+function openSvcEdit(svc) {
+  const nameInp = document.getElementById('svc-name');
+  const urlInp = document.getElementById('svc-url');
+  const descInp = document.getElementById('svc-desc');
+  const editIdInp = document.getElementById('svc-edit-id');
+  const title = document.getElementById('service-modal-title');
+  const submit = document.getElementById('modal-submit');
+  const urlField = urlInp?.closest('.modal-field');
+
+  [nameInp, descInp].forEach(el => { if (el) el.classList.remove('error'); });
+  if (urlField) urlField.style.display = 'none';
+
+  if (svc) {
+    if (nameInp) nameInp.value = svc.name;
+    if (urlInp) urlInp.value = '';
+    if (descInp) descInp.value = svc.desc || '';
+    if (editIdInp) editIdInp.value = svc.id;
+    if (title) title.innerHTML = '<span class="prompt">$</span> vim systemctl unit';
+    if (submit) submit.textContent = '保存修改';
+  } else {
+    if (nameInp) nameInp.value = '';
+    if (urlInp) urlInp.value = '';
+    if (descInp) descInp.value = '';
+    if (editIdInp) editIdInp.value = '';
+    if (title) title.innerHTML = '<span class="prompt">$</span> systemctl add-unit';
+    if (submit) submit.textContent = '添加服务';
+  }
+
+  // Hook into the global service modal submit
+  window._svcTabSubmit = function(name, desc, editId) {
+    const services = loadCustom();
+    if (editId) {
+      const s = services.find(x => x.id === editId);
+      if (s) { s.name = name; s.desc = desc; }
+    } else {
+      services.push({ id: 'svc_' + Date.now(), name, desc, icon: 'box' });
+    }
+    saveCustom(services);
+    if (urlField) urlField.style.display = '';
+    renderCustomServices();
+    notify.info(name + (editId ? ' 已更新' : ' 已添加'));
+    window._svcTabSubmit = null;
+  };
+
+  // Open the shared service modal
+  const backdrop = document.getElementById('service-modal');
+  if (backdrop) {
+    backdrop.classList.remove('closing');
+    backdrop.classList.add('open');
+    backdrop.setAttribute('aria-hidden', 'false');
+    setTimeout(() => document.getElementById('svc-name')?.focus(), 100);
   }
 }
 
-// Cleanup on tab switch
+function _esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+// ═══════════════════════════════════════════════════════════
+//  Cleanup
+// ═══════════════════════════════════════════════════════════
+
 export function cleanup() {
-  if (_refreshTimer) {
-    clearInterval(_refreshTimer);
-    _refreshTimer = null;
-  }
+  if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
 }

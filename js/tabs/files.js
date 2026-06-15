@@ -1,268 +1,210 @@
 /**
- * LingServer Dashboard — Files Tab
+ * LingServer Dashboard — Files Tab (dame graft)
  *
- * Breadcrumb navigation, file table, text preview, drag-drop upload,
- * delete, and new folder.
+ * Breadcrumb navigation, file table, text preview/save,
+ * drag-drop upload, delete, mkdir.
+ * Data: GET /api/files + PUT /api/files/save + POST upload/mkdir + DELETE
  */
 import { el, clear, $ } from '../utils/dom.js';
-import { DataTable, Modal, EmptyState } from '../ui.js';
-import { get, post, del as apiDel } from '../api.js';
+import { get, post, put, del } from '../api.js';
 import { notify } from '../utils/notify.js';
-import { bytes, dateShort } from '../utils/format.js';
-import { icon, iconLabel } from '../utils/icons.js';
+import { confirm } from '../utils/confirm.js';
+import { bytes } from '../utils/format.js';
 
-// Default root: C:\ on Windows, /home on Unix
-const _rootPath = navigator.platform?.includes('Win') ? 'C:\\' : '/home';
-let _currentPath = _rootPath;
+let _currentPath = '/home';
+let _refreshTimer = null;
 
-/**
- * Render the files tab.
- */
 export async function renderFiles(container) {
   clear(container);
 
-  // Breadcrumb
-  const breadcrumb = el('div', { class: 'panel__header', id: 'files-breadcrumb', style: 'padding:0 12px;height:36px;display:flex;align-items:center;gap:4px;font-size:12px;overflow-x:auto;' });
-  container.appendChild(breadcrumb);
-
-  // Toolbar
-  const toolbar = el('div', { style: 'display:flex;gap:8px;margin-bottom:8px;' },
-    el('button', { class: 'btn btn-secondary btn-sm', id: 'btn-upload', onClick: triggerUpload, html: iconLabel('upload', '上传')}),
-    el('button', { class: 'btn btn-secondary btn-sm', id: 'btn-mkdir', onClick: promptMkdir, html: iconLabel('folder-plus', '新建目录')}),
-    el('button', { class: 'btn btn-ghost btn-sm', id: 'btn-refresh', onClick: () => loadDir(_currentPath), html: iconLabel('refresh', '刷新')}),
-    el('input', { type: 'file', id: 'file-input', multiple: 'true', style: 'display:none;', onChange: handleUpload }),
+  const panel = el('div', { class: 'panel' },
+    el('div', { class: 'panel__header' },
+      el('h2', { class: 'panel__title' },
+        el('span', { class: 'prompt' }, '$'),
+        ' ls -la',
+      ),
+      el('div', { class: 'panel__actions' },
+        el('button', { class: 'panel__btn panel__btn--primary', id: 'file-mkdir' }, '+ 新建目录'),
+      ),
+    ),
+    // Breadcrumb
+    el('div', { class: 'breadcrumb', id: 'file-breadcrumb' }),
+    // File list
+    el('div', { class: 'panel__body', id: 'file-body', style: 'overflow:auto;' }),
+    // Upload zone
+    el('div', { style: 'padding:8px 14px;border-top:1px solid var(--card-inner-border);' },
+      el('label', { class: 'panel__btn panel__btn--sm', style: 'cursor:pointer;' },
+        '📤 上传文件',
+        el('input', { type: 'file', id: 'file-upload-input', multiple: true,
+          style: 'display:none;',
+          onChange: handleUpload,
+        }),
+      ),
+    ),
   );
-  container.appendChild(toolbar);
+  container.appendChild(panel);
 
-  // File table container
-  const tableWrap = el('div', { id: 'files-table-wrap' });
-  container.appendChild(tableWrap);
-
-  // Load root (C:\ on Windows, /home on Unix)
-  await loadDir(_currentPath);
-}
-
-// ═══════════════════════════════════════════════════════════
-//  Load directory
-// ═══════════════════════════════════════════════════════════
-
-async function loadDir(path) {
-  _currentPath = path;
-
-  try {
-    const data = await get(`/api/files?path=${encodeURIComponent(path)}`);
-    renderBreadcrumb(data.current_path, data.parent_path);
-    renderTable(data.items);
-    notify.info(`${data.items.length} 个项目`);
-  } catch (e) {
-    notify.error(`加载目录失败: ${e.message}`);
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-//  Breadcrumb
-// ═══════════════════════════════════════════════════════════
-
-function renderBreadcrumb(currentPath, parentPath) {
-  const bc = $('#files-breadcrumb');
-  if (!bc) return;
-  clear(bc);
-
-  // Parent directory button (..)
-  if (parentPath) {
-    bc.appendChild(el('span', {
-      class: 'breadcrumb-item',
-      style: 'cursor:pointer;color:var(--color-primary);font-weight:600;margin-right:4px;',
-      onClick: () => loadDir(parentPath),
-      title: parentPath,
-    }, '⬆ 上级'));
-    bc.appendChild(el('span', { style: 'color:var(--color-text-dim);margin:0 2px;' }, '|'));
-  }
-
-  const parts = currentPath.replace(/\\/g, '/').split('/').filter(Boolean);
-  // Root
-  bc.appendChild(el('span', { class: 'breadcrumb-item', style: 'cursor:pointer;color:var(--color-primary);', onClick: () => loadDir(_rootPath) }, '/'));
-
-  let accumulated = '';
-  for (const part of parts) {
-    accumulated += '/' + part;
-    bc.appendChild(el('span', { style: 'color:var(--color-text-dim);margin:0 2px;' }, '/'));
-    bc.appendChild(el('span', {
-      class: 'breadcrumb-item',
-      style: 'cursor:pointer;color:var(--color-text-body);',
-      onClick: () => loadDir(accumulated),
-    }, part));
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-//  File table
-// ═══════════════════════════════════════════════════════════
-
-function renderTable(items) {
-  const wrap = $('#files-table-wrap');
-  if (!wrap) return;
-  clear(wrap);
-
-  if (!items.length) {
-    wrap.appendChild(EmptyState({ icon: 'folder', message: '目录为空' }));
-    return;
-  }
-
-  const table = DataTable({
-    columns: ['icon', 'name', 'size_human', 'modified', 'permissions', 'actions'],
-    labels: { icon: '', name: '名称', size_human: '大小', modified: '修改时间', permissions: '权限', actions: '' },
-    rows: items.map(item => ({
-      ...item,
-      icon: item.is_dir ? icon('folder') : icon('file'),
-    })),
-    format: (col, val, row) => {
-      if (col === 'icon') return val;
-      if (col === 'name') return val;
-      if (col === 'size_human') return row.is_dir ? '--' : (val || '--');
-      if (col === 'modified') return val ? dateShort(val) : '--';
-      if (col === 'permissions') return val || '--';
-      if (col === 'actions') return row.is_dir ? '' : icon('eye');
-      return val || '';
-    },
+  $('#file-mkdir')?.addEventListener('click', async () => {
+    const name = prompt('新目录名称:');
+    if (!name) return;
+    try {
+      await post('/api/files/mkdir', null, { params: { path: _currentPath, name } });
+      notify.success(`已创建目录 ${name}`);
+      loadDirectory();
+    } catch (e) { notify.error(`创建失败: ${e.message}`); }
   });
 
-  // Click handlers
-  table.querySelectorAll('tbody tr').forEach((tr, i) => {
-    const item = items[i];
-    tr.style.cursor = 'pointer';
+  loadDirectory();
+  _refreshTimer = setInterval(loadDirectory, 15000);
+}
 
-    tr.addEventListener('click', (e) => {
-      // Don't trigger on action buttons
-      if (e.target.closest('[data-action]')) return;
+async function loadDirectory() {
+  const body = $('#file-body');
+  const bread = $('#file-breadcrumb');
+  if (!body) return;
 
-      if (item.is_dir) {
-        loadDir(item.path);
-      } else {
-        previewFile(item);
-      }
+  try {
+    const data = await get(`/api/files?path=${encodeURIComponent(_currentPath)}`);
+    _currentPath = data.current_path || _currentPath;
+    renderBreadcrumb(bread);
+    renderFileList(data.items || [], body);
+  } catch (e) {
+    body.innerHTML = `<div class="empty-state">加载失败: ${e.message}</div>`;
+  }
+}
+
+function renderBreadcrumb(bread) {
+  if (!bread) return;
+  const parts = _currentPath.replace(/\\/g, '/').split('/').filter(Boolean);
+  const crumbs = [{ label: '/', path: '/' }];
+  let acc = '';
+  for (const p of parts) {
+    acc += '/' + p;
+    if (acc !== '/') crumbs.push({ label: p, path: acc });
+  }
+  bread.innerHTML = crumbs.map((c, i) =>
+    `<span class="breadcrumb__sep">/</span><span class="breadcrumb__item${i === crumbs.length - 1 ? ' active' : ''}" data-path="${_esc(c.path)}">${_esc(c.label)}</span>`
+  ).join('');
+
+  bread.querySelectorAll('.breadcrumb__item').forEach(item => {
+    item.addEventListener('click', () => {
+      _currentPath = item.dataset.path;
+      loadDirectory();
+    });
+  });
+}
+
+function renderFileList(items, body) {
+  clear(body);
+  if (!items.length) { body.innerHTML = '<div class="empty-state">空目录</div>'; return; }
+
+  body.innerHTML = `<table class="data-table">
+    <thead><tr><th>名称</th><th>大小</th><th>修改时间</th><th>权限</th><th>操作</th></tr></thead>
+    <tbody>${items.map(f => `<tr>
+      <td style="font-weight:500;cursor:pointer;" data-path="${_esc(f.path)}" class="file-entry ${f.is_dir ? 'file-dir' : 'file-file'}">
+        ${f.is_dir ? '📁' : '📄'} ${_esc(f.name)}${f.is_symlink ? ' ↪' : ''}
+      </td>
+      <td>${f.is_dir ? '-' : f.size_human || bytes(f.size_bytes || 0)}</td>
+      <td>${_esc(f.modified || '--')}</td>
+      <td>${f.permissions || '--'}</td>
+      <td>
+        ${!f.is_dir ? `<button class="panel__btn panel__btn--sm file-edit" data-path="${_esc(f.path)}">编辑</button>` : ''}
+        <button class="panel__btn panel__btn--danger panel__btn--sm file-delete" data-path="${_esc(f.path)}">删除</button>
+      </td>
+    </tr>`).join('')}</tbody></table>`;
+
+  // Click to navigate / read
+  body.querySelectorAll('.file-entry').forEach(el => {
+    el.addEventListener('click', async () => {
+      const p = el.dataset.path;
+      if (el.classList.contains('file-dir')) { _currentPath = p; loadDirectory(); }
+      else await previewFile(p);
     });
   });
 
-  wrap.appendChild(table);
+  // Edit (opens save dialog)
+  body.querySelectorAll('.file-edit').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); previewFile(btn.dataset.path, true); });
+  });
+
+  // Delete
+  body.querySelectorAll('.file-delete').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const p = btn.dataset.path;
+      const ok = await confirm(`确定删除 ${p}？`, '删除文件');
+      if (!ok) return;
+      try {
+        await del(`/api/files?path=${encodeURIComponent(p)}`);
+        notify.success('已删除');
+        loadDirectory();
+      } catch (err) { notify.error(`删除失败: ${err.message}`); }
+    });
+  });
 }
 
-// ═══════════════════════════════════════════════════════════
-//  File preview
-// ═══════════════════════════════════════════════════════════
-
-async function previewFile(item) {
+async function previewFile(filePath, editMode = false) {
   try {
-    const data = await get(`/api/files/read?path=${encodeURIComponent(item.path)}`);
-    if (data.binary) {
-      notify.warn('二进制文件无法预览');
-      return;
-    }
-    if (data.too_large) {
-      notify.warn(data.content);
-      return;
-    }
+    const data = await get(`/api/files/read?path=${encodeURIComponent(filePath)}`);
+    if (data.binary) { notify.warn('二进制文件无法预览'); return; }
+    if (data.too_large) { notify.warn(data.content); return; }
 
     const content = data.content || '';
-    const lang = detectLang(item.name);
+    const overlay = el('div', {
+      style: 'position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;background:oklch(0 0 0 / 0.6);',
+      onClick: (e) => { if (e.target === overlay) overlay.remove(); },
+    },
+      el('div', { class: 'panel', style: 'width:800px;max-width:95vw;max-height:85vh;' },
+        el('div', { class: 'panel__header' },
+          el('span', { class: 'panel__title' }, filePath),
+          el('div', { class: 'panel__actions' },
+            editMode ? el('button', { class: 'panel__btn panel__btn--primary', id: 'file-save-btn' }, '保存') : null,
+            el('button', { class: 'panel__btn panel__btn--sm', onClick: () => overlay.remove() }, '关闭'),
+          ),
+        ),
+        editMode
+          ? el('textarea', { class: 'panel__body', id: 'file-edit-area',
+              style: 'flex:1;min-height:400px;background:var(--card-inner-bg);color:var(--t-body);font-family:var(--font-mono);font-size:12px;border:none;resize:none;padding:12px;' },
+            content)
+          : el('pre', { class: 'panel__body', style: 'flex:1;max-height:60vh;overflow:auto;font-family:var(--font-mono);font-size:12px;white-space:pre-wrap;' },
+            content),
+      ),
+    );
+    document.body.appendChild(overlay);
 
-    Modal({
-      title: `📄 ${item.name} (${data.total_lines || 0} 行)`,
-      body: el('pre', {
-        style: 'background:var(--abyss-950);color:var(--abyss-100);padding:12px;border-radius:4px;font-family:var(--font-mono);font-size:12px;line-height:1.6;max-height:60vh;overflow:auto;white-space:pre-wrap;word-break:break-all;',
-      }, content),
-      footer: `${data.size_human || bytes(item.size_bytes)} · ${data.truncated ? '已截断' : '完整'}`,
-    });
-  } catch (e) {
-    notify.error(`读取失败: ${e.message}`);
-  }
-}
-
-function detectLang(name) {
-  const ext = name.split('.').pop()?.toLowerCase();
-  const map = { py: 'python', js: 'javascript', ts: 'typescript', html: 'html', css: 'css', json: 'json', xml: 'xml', yaml: 'yaml', yml: 'yaml', md: 'markdown', sql: 'sql', sh: 'bash', bat: 'batch', ps1: 'powershell', conf: 'ini', ini: 'ini', log: '', txt: '' };
-  return map[ext] || '';
-}
-
-// ═══════════════════════════════════════════════════════════
-//  Upload
-// ═══════════════════════════════════════════════════════════
-
-function triggerUpload() {
-  $('#file-input')?.click();
+    if (editMode) {
+      $('#file-save-btn')?.addEventListener('click', async () => {
+        const newContent = $('#file-edit-area')?.value || '';
+        try {
+          await put('/api/files/save', { path: filePath, content: newContent });
+          notify.success('文件已保存');
+          overlay.remove();
+          loadDirectory();
+        } catch (e) { notify.error(`保存失败: ${e.message}`); }
+      });
+    }
+  } catch (e) { notify.error(`读取失败: ${e.message}`); }
 }
 
 async function handleUpload(e) {
-  const input = e.target;
-  const files = input.files;
+  const files = e.target.files;
   if (!files.length) return;
-
-  const formData = new FormData();
-  for (const f of files) {
-    formData.append('files', f);
-  }
-
-  notify.info(`正在上传 ${files.length} 个文件...`);
-
+  const form = new FormData();
+  for (const f of files) form.append('files', f);
   try {
-    const res = await fetch(`/api/files/upload?path=${encodeURIComponent(_currentPath)}`, {
-      method: 'POST',
-      body: formData,
-      credentials: 'same-origin',
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      notify.error(err.detail || '上传失败');
-      return;
-    }
-
-    const data = await res.json();
-    const ok = data.uploaded.filter(u => u.success).length;
-    const fail = data.uploaded.filter(u => !u.success).length;
-
-    if (fail > 0) {
-      notify.warn(`上传: ${ok} 成功, ${fail} 失败`);
-      for (const u of data.uploaded) {
-        if (!u.success) notify.error(`${u.name}: ${u.error}`);
-      }
-    } else {
-      notify.success(`上传完成: ${ok} 个文件`);
-    }
-
-    loadDir(_currentPath);
-  } catch (e) {
-    notify.error(`上传失败: ${e.message}`);
-  }
-
-  input.value = '';
+    const data = await post(`/api/files/upload?path=${encodeURIComponent(_currentPath)}`, form);
+    const results = data.uploaded || [];
+    const ok = results.filter(r => r.success).length;
+    const fail = results.filter(r => !r.success).length;
+    if (ok) notify.success(`${ok} 个文件上传成功`);
+    if (fail) notify.error(`${fail} 个文件上传失败`);
+    loadDirectory();
+  } catch (err) { notify.error(`上传失败: ${err.message}`); }
+  e.target.value = '';
 }
 
-// ═══════════════════════════════════════════════════════════
-//  Mkdir & Delete
-// ═══════════════════════════════════════════════════════════
+function _esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
-async function promptMkdir() {
-  const name = prompt('新目录名称:');
-  if (!name) return;
-
-  try {
-    await post(`/api/files/mkdir?path=${encodeURIComponent(_currentPath)}&name=${encodeURIComponent(name)}`);
-    notify.success(`已创建: ${name}`);
-    loadDir(_currentPath);
-  } catch (e) {
-    notify.error(`创建失败: ${e.message}`);
-  }
-}
-
-// Delete is triggered from a data-action button (add later or use right-click)
-export async function deleteFile(path) {
-  if (!confirm(`确定删除 ${path}?`)) return;
-  try {
-    await apiDel(`/api/files?path=${encodeURIComponent(path)}`);
-    notify.success('已删除');
-    loadDir(_currentPath);
-  } catch (e) {
-    notify.error(`删除失败: ${e.message}`);
-  }
+export function cleanup() {
+  if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
 }

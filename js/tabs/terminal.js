@@ -1,7 +1,8 @@
 /**
- * LingServer Dashboard — Terminal Tab
+ * LingServer Dashboard — Terminal Tab (dame graft)
  *
- * xterm.js + WebSocket terminal with session management.
+ * xterm.js + WebSocket PTY terminal with session management.
+ * Core PTY logic retained from main line; dame visual theme applied.
  * Features: multi-session, attach/detach, resize, font zoom, clipboard.
  */
 import { el, clear, $ } from '../utils/dom.js';

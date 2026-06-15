@@ -1,200 +1,170 @@
 /**
- * LingServer Dashboard — Docker Tab
+ * LingServer Dashboard — Docker Tab (dame graft)
  *
- * Container list with start/stop, logs viewer, images list.
- * Degrades gracefully when Docker is unavailable.
+ * Container cards with status dots, start/stop, logs viewer.
+ * Gracefully degrades when Docker is unavailable.
+ * Data: GET /api/docker/* + POST /api/docker/containers/{id}/{action}
  */
 import { el, clear, $ } from '../utils/dom.js';
-import { Panel, DataTable, Modal, EmptyState } from '../ui.js';
 import { get, post } from '../api.js';
 import { notify } from '../utils/notify.js';
-import { bytes, dateShort } from '../utils/format.js';
-import { icon } from '../utils/icons.js';
+import { confirm } from '../utils/confirm.js';
 
-/**
- * Render the Docker tab.
- */
+let _refreshTimer = null;
+
 export async function renderDocker(container) {
   clear(container);
 
-  // Check availability first
-  let dockerAvailable = false;
-  try {
-    const info = await get('/api/docker');
-    dockerAvailable = info.available;
-  } catch (e) {
-    // 503 or network error
-  }
-
-  if (!dockerAvailable) {
-    container.appendChild(EmptyState({
-      icon: 'docker',
-      message: 'Docker 不可用 — Socket 无法连接。请确认 Docker 已安装并运行。',
-    }));
-    return;
-  }
-
-  // ── Info bar ──
-  const infoBar = el('div', { id: 'docker-info-bar', style: 'margin-bottom:8px;' });
+  // Docker info bar
+  const infoBar = el('div', { id: 'docker-info', style: 'margin-bottom:8px;' });
   container.appendChild(infoBar);
 
-  // ── Container panel ──
-  const cPanel = Panel({ title: '容器', className: 'panel--docker' });
+  // Containers panel
+  const cPanel = el('div', { class: 'panel' },
+    el('div', { class: 'panel__header' },
+      el('h2', { class: 'panel__title' },
+        el('span', { class: 'prompt' }, '$'),
+        ' docker ps -a',
+      ),
+    ),
+    el('div', { class: 'panel__body', id: 'docker-containers-body', style: 'overflow:auto;' }),
+  );
   container.appendChild(cPanel);
 
-  // ── Image panel ──
-  const iPanel = Panel({ title: '镜像', className: 'panel--docker' });
+  // Images panel
+  const iPanel = el('div', { class: 'panel' },
+    el('div', { class: 'panel__header' },
+      el('h2', { class: 'panel__title' },
+        el('span', { class: 'prompt' }, '$'),
+        ' docker images',
+      ),
+    ),
+    el('div', { class: 'panel__body', id: 'docker-images-body', style: 'overflow:auto;' }),
+  );
   container.appendChild(iPanel);
 
-  await loadAll();
+  loadAll();
+  _refreshTimer = setInterval(loadAll, 10000);
 }
-
-// ═══════════════════════════════════════════════════════════
-//  Load data
-// ═══════════════════════════════════════════════════════════
 
 async function loadAll() {
+  // Info
   try {
-    const [info, cData, iData] = await Promise.all([
-      get('/api/docker'),
-      get('/api/docker/containers?all=true'),
-      get('/api/docker/images'),
-    ]);
-    renderInfoBar(info);
-    renderContainers(cData.containers || []);
-    renderImages(iData.images || []);
-  } catch (e) {
-    notify.error(`Docker 数据加载失败: ${e.message}`);
+    const info = await get('/api/docker/info');
+    const bar = $('#docker-info');
+    if (bar && info) {
+      bar.innerHTML = `<span style="font-size:12px;color:var(--t-muted);">
+        Docker ${info.version || '--'} ·
+        容器: ${info.containers_running || 0} 运行 / ${info.containers_total || 0} 总计 ·
+        镜像: ${info.images || 0}
+      </span>`;
+    }
+  } catch (_) {}
+
+  // Containers
+  const cBody = $('#docker-containers-body');
+  if (cBody) {
+    try {
+      const data = await get('/api/docker/containers');
+      renderContainers(data.containers || data || [], cBody);
+    } catch (e) {
+      cBody.innerHTML = `<div class="empty-state">Docker 不可用<br><small>${e.message}</small></div>`;
+    }
+  }
+
+  // Images
+  const iBody = $('#docker-images-body');
+  if (iBody) {
+    try {
+      const data = await get('/api/docker/images');
+      const images = data.images || data || [];
+      if (!images.length) iBody.innerHTML = '<div class="empty-state">无镜像</div>';
+      else renderImages(images, iBody);
+    } catch (_) {
+      iBody.innerHTML = '<div class="empty-state">-</div>';
+    }
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-//  Info bar
-// ═══════════════════════════════════════════════════════════
-
-function renderInfoBar(info) {
-  const bar = $('#docker-info-bar');
-  if (!bar) return;
-  bar.innerHTML = `<span style="font-size:12px;color:var(--color-text-muted);">
-    ${icon('server')} ${info.server_version || '?'} · ${info.os || '?'} ·
-    容器 ${info.containers_running || 0}/${info.containers || 0} 运行 ·
-    镜像 ${info.images || 0}
-  </span>`;
-}
-
-// ═══════════════════════════════════════════════════════════
-//  Containers
-// ═══════════════════════════════════════════════════════════
-
-function renderContainers(containers) {
-  const panel = document.querySelector('.panel--docker');
-  if (!panel) return;
-  const body = panel.querySelector('.panel__body');
-  if (!body) return;
+function renderContainers(containers, body) {
   clear(body);
+  if (!containers.length) { body.innerHTML = '<div class="empty-state">无容器</div>'; return; }
 
-  if (!containers.length) {
-    body.appendChild(EmptyState({ icon: 'empty-box', message: '没有容器' }));
-    return;
-  }
+  body.innerHTML = `<div class="svc-grid">${containers.map(c => {
+    const running = (c.status || c.state || '').toLowerCase().includes('up') || c.state === 'running';
+    const dotClass = running ? 'svc-mgmt-card__dot--active' : 'svc-mgmt-card__dot--inactive';
+    const name = c.name || c.id?.substring(0, 12) || '--';
+    const ports = c.ports ? (Array.isArray(c.ports) ? c.ports.join(', ') : c.ports) : '';
+    return `<div class="svc-mgmt-card">
+      <span class="svc-mgmt-card__icon">🐳</span>
+      <span class="svc-mgmt-card__dot ${dotClass}"></span>
+      <span class="svc-mgmt-card__body">
+        <div class="svc-mgmt-card__name">${_esc(name)}</div>
+        <div class="svc-mgmt-card__desc">${_esc(c.image || '--')}${ports ? ' · ' + _esc(ports) : ''}</div>
+      </span>
+      <span class="svc-mgmt-card__actions">
+        ${running
+          ? `<button class="panel__btn panel__btn--danger panel__btn--sm ctrl-stop" data-cid="${c.id}">■</button>`
+          : `<button class="panel__btn panel__btn--sm ctrl-start" data-cid="${c.id}">▶</button>`}
+        <button class="panel__btn panel__btn--sm ctrl-logs" data-cid="${c.id}">📋</button>
+      </span>
+    </div>`;
+  }).join('')}</div>`;
 
-  const table = DataTable({
-    columns: ['name', 'image', 'status', 'cpu_percent', 'memory', 'ports', 'actions'],
-    labels: { name: '名称', image: '镜像', status: '状态', cpu_percent: 'CPU', memory: '内存', ports: '端口', actions: '' },
-    rows: containers.map(c => ({
-      ...c,
-      memory: c.memory_limit > 0 ? `${(c.memory_usage / 1024 / 1024).toFixed(1)} / ${(c.memory_limit / 1024 / 1024).toFixed(0)} MB` : '--',
-      ports: (c.ports || []).join(', ') || '--',
-    })),
-    format: (col, val, row) => {
-      if (col === 'status') {
-        const running = row.state === 'running';
-        return el('span', {
-          style: `color:${running ? 'var(--green)' : 'var(--color-text-dim)'};`,
-        }, val).outerHTML;
-      }
-      if (col === 'cpu_percent') return `${val}%`;
-      if (col === 'actions') {
-        const running = row.state === 'running';
-        const nameAttr = String(row.name || '').replace(/"/g, '&quot;');
-        return `<button data-action="${running ? 'stop' : 'start'}" data-id="${row.id}" data-name="${nameAttr}" class="btn btn-sm ${running ? 'btn-danger' : 'btn-primary'}" style="height:24px;font-size:11px;">${running ? '停止' : '启动'}</button>`;
-      }
-      return val || '--';
-    },
-  });
-
-  // Action handlers
-  table.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const action = btn.dataset.action;
-      const id = btn.dataset.id;
-      const name = btn.dataset.name || id;
-
+  // Wire up actions
+  body.querySelectorAll('.ctrl-start, .ctrl-stop').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const cid = btn.dataset.cid;
+      const action = btn.classList.contains('ctrl-start') ? 'start' : 'stop';
+      const ok = await confirm(`确定${action === 'start' ? '启动' : '停止'}容器？`, '容器操作', 'info');
+      if (!ok) return;
       try {
-        if (action === 'start') {
-          await post(`/api/docker/containers/${id}/start`);
-          notify.success(`${name} 已启动`);
-        } else {
-          await post(`/api/docker/containers/${id}/stop`);
-          notify.success(`${name} 已停止`);
-        }
+        await post(`/api/docker/containers/${cid}/${action}`);
+        notify.success(`容器${action === 'start' ? '已启动' : '已停止'}`);
         loadAll();
-      } catch (e) {
-        notify.error(`${action === 'start' ? '启动' : '停止'}失败: ${e.message}`);
-      }
+      } catch (e) { notify.error(`操作失败: ${e.message}`); }
     });
   });
 
-  // Row click → logs
-  table.querySelectorAll('tbody tr').forEach((tr, i) => {
-    tr.style.cursor = 'pointer';
-    tr.addEventListener('click', async () => {
-      const c = containers[i];
+  body.querySelectorAll('.ctrl-logs').forEach(btn => {
+    btn.addEventListener('click', async () => {
       try {
-        const data = await get(`/api/docker/containers/${c.id}/logs?tail=200`);
-        Modal({
-          title: `${icon('terminal')} ${c.name} — 日志`,
-          body: el('pre', {
-            style: 'background:var(--abyss-950);color:var(--abyss-100);padding:12px;border-radius:4px;font-family:var(--font-mono);font-size:11px;line-height:1.5;max-height:60vh;overflow:auto;white-space:pre-wrap;',
-          }, data.logs || '(无日志)'),
-          footer: `最近 200 行 · ${c.id}`,
-        });
-      } catch (e) {
-        notify.error(`获取日志失败: ${e.message}`);
-      }
+        const data = await get(`/api/docker/containers/${btn.dataset.cid}/logs?tail=50`);
+        const logs = data.logs || JSON.stringify(data);
+        // Show in a simple modal-style overlay
+        const overlay = el('div', {
+          style: 'position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;background:oklch(0 0 0 / 0.6);',
+          onClick: (e) => { if (e.target === overlay) overlay.remove(); },
+        },
+          el('div', { class: 'panel', style: 'width:700px;max-width:90vw;max-height:80vh;' },
+            el('div', { class: 'panel__header' },
+              el('span', { class: 'panel__title' }, '容器日志'),
+              el('button', { class: 'panel__btn panel__btn--sm', onClick: () => overlay.remove() }, '关闭'),
+            ),
+            el('pre', { class: 'panel__body', style: 'max-height:60vh;overflow:auto;font-family:var(--font-mono);font-size:11px;white-space:pre-wrap;' },
+              _esc(logs),
+            ),
+          ),
+        );
+        document.body.appendChild(overlay);
+      } catch (e) { notify.error(`获取日志失败: ${e.message}`); }
     });
   });
-
-  body.appendChild(table);
 }
 
-// ═══════════════════════════════════════════════════════════
-//  Images
-// ═══════════════════════════════════════════════════════════
-
-function renderImages(images) {
-  const panel = document.querySelectorAll('.panel--docker')[1];
-  if (!panel) return;
-  const body = panel.querySelector('.panel__body');
-  if (!body) return;
+function renderImages(images, body) {
   clear(body);
+  body.innerHTML = `<div class="svc-grid">${images.map(i => `<div class="svc-mgmt-card">
+    <span class="svc-mgmt-card__icon">📦</span>
+    <span class="svc-mgmt-card__body">
+      <div class="svc-mgmt-card__name">${_esc(i.tags?.[0] || i.repository || i.id?.substring(0, 12) || '--')}</div>
+      <div class="svc-mgmt-card__desc">${_esc(i.created || '')} · ${_esc(i.size || '')}</div>
+    </span>
+  </div>`).join('')}</div>`;
+}
 
-  if (!images.length) {
-    body.appendChild(EmptyState({ icon: 'disk', message: '没有镜像' }));
-    return;
-  }
+function _esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
-  const table = DataTable({
-    columns: ['tag', 'id', 'size_bytes', 'created'],
-    labels: { tag: '标签', id: 'ID', size_bytes: '大小', created: '创建时间' },
-    rows: images,
-    format: (col, val) => {
-      if (col === 'size_bytes') return bytes(val);
-      if (col === 'created') return val ? dateShort(val) : '--';
-      return val || '--';
-    },
-  });
-
-  body.appendChild(table);
+export function cleanup() {
+  if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
 }
