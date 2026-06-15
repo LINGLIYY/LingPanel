@@ -117,4 +117,4 @@ LING_METRICS_RETENTION=7               # 指标数据保留天数
 
 ## License
 
-MIT
+*待定*
