@@ -67,10 +67,13 @@ package-lock.json
 yarn.lock
 
 # ── Documentation, assets, reference materials ──
+docs/
+dame/
 图片/
 
-# ── Claude Code（仅排除本地设置，保留项目文档）──
-.claude/settings.local.json
+# ── Claude Code（全部在 .claude/ 目录下统一管理）──
+.claude/
+CLAUDE.md
 
 # ── Misc ──
 tmp/

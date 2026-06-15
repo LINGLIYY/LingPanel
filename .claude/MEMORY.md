@@ -1,4 +1,0 @@
-- [WebSocket Double-Accept Footgun](memory/ws-double-accept-footgun.md) — Critical bug pattern: double ws.accept() silently kills connections
-- [SECRET_KEY Import Timing Bug](memory/secret-key-import-timing.md) — `from config import SECRET_KEY` captures empty string, causing 500 on login
-- [Admin Password Hot-Reload](memory/admin-password-hot-reload.md) — `:memory:` DB child process inherits password via os.environ
-- [Docker Endpoint Consistency](memory/docker-endpoint-consistency.md) — `/api/docker` returns 503, `/api/docker/info` alias added
