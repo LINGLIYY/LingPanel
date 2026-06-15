@@ -26,6 +26,7 @@ const TAB_DEFS = [
   { name: 'terminal',  label: '终端',   active: false },
   { name: 'logs',      label: '日志',   active: false },
   { name: 'alerts',    label: '告警',   active: false },
+  { name: 'settings',  label: '设置',   active: false },
 ];
 
 /**

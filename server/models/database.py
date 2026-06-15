@@ -8,7 +8,7 @@ import os
 
 from server.config import DB_PATH
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 MIGRATIONS = {
     1: [
@@ -95,6 +95,25 @@ MIGRATIONS = {
         )""",
         """CREATE INDEX IF NOT EXISTS idx_term_audit_session ON terminal_audit(session_id)""",
         """CREATE INDEX IF NOT EXISTS idx_term_audit_ts ON terminal_audit(timestamp)""",
+    ],
+    6: [
+        """CREATE TABLE IF NOT EXISTS settings (
+            key          TEXT PRIMARY KEY,
+            value        TEXT NOT NULL,
+            updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+        )""",
+        # Defaults (only inserted if table was just created)
+        """INSERT OR IGNORE INTO settings (key, value) VALUES ('refresh_interval', '1')""",
+        """INSERT OR IGNORE INTO settings (key, value) VALUES ('retention_days', '7')""",
+        """INSERT OR IGNORE INTO settings (key, value) VALUES ('terminal_timeout', '30')""",
+        """INSERT OR IGNORE INTO settings (key, value) VALUES ('debug_panel', 'true')""",
+        """INSERT OR IGNORE INTO settings (key, value) VALUES ('alert_cpu', '90')""",
+        """INSERT OR IGNORE INTO settings (key, value) VALUES ('alert_mem', '95')""",
+        """INSERT OR IGNORE INTO settings (key, value) VALUES ('alert_disk', '85')""",
+        """INSERT OR IGNORE INTO settings (key, value) VALUES ('alert_duration', '300')""",
+        """INSERT OR IGNORE INTO settings (key, value) VALUES ('alert_action', 'browser')""",
+        """INSERT OR IGNORE INTO settings (key, value) VALUES ('dark_background', '')""",
+        """INSERT OR IGNORE INTO settings (key, value) VALUES ('light_background', '')""",
     ],
 }
 

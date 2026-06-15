@@ -6,7 +6,7 @@
  *
  * Data: REST /api/alerts/* + WS /ws/live alert events
  */
-import { el, clear, $ } from '../utils/dom.js';
+import { el, clear, $, escapeHtml } from '../utils/dom.js';
 import { comm } from '../comm.js';
 const { get, post, put, del: apiDel } = comm.rest;
 const { on, off } = comm;
@@ -127,7 +127,7 @@ function renderRulesList(rules, body) {
   body.innerHTML = `<table class="rule-table">
     <thead><tr><th>名称</th><th>指标</th><th>条件</th><th>阈值</th><th>持续(s)</th><th>状态</th><th>操作</th></tr></thead>
     <tbody>${rules.map(r => `<tr>
-      <td style="font-weight:500">${_esc(r.name)}</td>
+      <td style="font-weight:500">${escapeHtml(r.name)}</td>
       <td>${METRIC_LABELS[r.metric] || r.metric}</td>
       <td>${r.condition}</td>
       <td>${r.threshold}</td>
@@ -353,8 +353,8 @@ function renderHistory(data, body) {
     <thead><tr><th>时间</th><th>规则</th><th>消息</th><th>状态</th><th>操作</th></tr></thead>
     <tbody>${data.items.map(h => `<tr>
       <td>${dateShort(h.triggered_at)}</td>
-      <td style="font-weight:500">${_esc(h.rule_name)}</td>
-      <td>${_esc(h.message || '')}</td>
+      <td style="font-weight:500">${escapeHtml(h.rule_name)}</td>
+      <td>${escapeHtml(h.message || '')}</td>
       <td>${_historyBadge(h.state)}</td>
       <td>${h.state === 'fired'
         ? `<button class="panel__btn panel__btn--sm btn-ack" data-ack="${h.id}">确认</button>`
@@ -390,12 +390,6 @@ function _historyBadge(state) {
     case 'recovered':    return '<span class="status-badge status-badge--ok">已恢复</span>';
     default:             return `<span class="status-badge status-badge--neutral">${state}</span>`;
   }
-}
-
-function _esc(s) {
-  const d = document.createElement('div');
-  d.textContent = s || '';
-  return d.innerHTML;
 }
 
 // ═══════════════════════════════════════════════════════════

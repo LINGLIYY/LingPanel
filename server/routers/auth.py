@@ -99,64 +99,61 @@ async def login(request: Request, body: LoginRequest):
     _check_lockout(client_ip)
 
     db = get_db()
-    try:
-        row = db.execute(
-            "SELECT id, username, password_hash, last_login, totp_enabled, must_change_password FROM users WHERE username = ?",
-            (body.username,),
-        ).fetchone()
 
-        if not row or not verify_password(body.password, row["password_hash"]):
-            _record_failure(client_ip)
-            # Audit
-            db.execute(
-                "INSERT INTO login_audit (username, ip_address, success) VALUES (?,?,0)",
-                (body.username, client_ip),
-            )
-            db.commit()
+    row = db.execute(
+        "SELECT id, username, password_hash, last_login, totp_enabled, must_change_password FROM users WHERE username = ?",
+        (body.username,),
+    ).fetchone()
 
-            failures = _lockout.get(client_ip, {}).get("failures", 0)
-            remaining = max(0, MAX_LOGIN_FAILURES - failures)
-
-            status = 423 if failures >= MAX_LOGIN_FAILURES else 401
-            detail = f"用户名或密码错误，剩余尝试 {remaining} 次"
-            if status == 423:
-                detail = f"登录已锁定 {LOGIN_LOCKOUT_MINUTES} 分钟"
-
-            raise HTTPException(status_code=status, detail=detail)
-
-        # Success
-        _clear_failures(client_ip)
-
-        access_token = create_access_token(row["id"], row["username"])
-        refresh_token = create_refresh_token(row["id"], row["username"])
-
+    if not row or not verify_password(body.password, row["password_hash"]):
+        _record_failure(client_ip)
         # Audit
         db.execute(
-            "INSERT INTO login_audit (username, ip_address, success) VALUES (?,?,1)",
+            "INSERT INTO login_audit (username, ip_address, success) VALUES (?,?,0)",
             (body.username, client_ip),
-        )
-        db.execute(
-            "UPDATE users SET last_login = datetime('now') WHERE id = ?",
-            (row["id"],),
         )
         db.commit()
 
-        response = JSONResponse({
-            "success": True,
-            "data": {
-                "user": {
-                    "username": row["username"],
-                    "last_login": row["last_login"],
-                    "totp_enabled": bool(row["totp_enabled"]),
-                    "must_change_password": bool(row["must_change_password"]),
-                },
-            },
-        })
-        _set_auth_cookies(response, access_token, refresh_token, request, body.remember)
-        return response
+        failures = _lockout.get(client_ip, {}).get("failures", 0)
+        remaining = max(0, MAX_LOGIN_FAILURES - failures)
 
-    finally:
-        pass  # Connections managed by app lifespan
+        status = 423 if failures >= MAX_LOGIN_FAILURES else 401
+        detail = f"用户名或密码错误，剩余尝试 {remaining} 次"
+        if status == 423:
+            detail = f"登录已锁定 {LOGIN_LOCKOUT_MINUTES} 分钟"
+
+        raise HTTPException(status_code=status, detail=detail)
+
+    # Success
+    _clear_failures(client_ip)
+
+    access_token = create_access_token(row["id"], row["username"])
+    refresh_token = create_refresh_token(row["id"], row["username"])
+
+    # Audit
+    db.execute(
+        "INSERT INTO login_audit (username, ip_address, success) VALUES (?,?,1)",
+        (body.username, client_ip),
+    )
+    db.execute(
+        "UPDATE users SET last_login = datetime('now') WHERE id = ?",
+        (row["id"],),
+    )
+    db.commit()
+
+    response = JSONResponse({
+        "success": True,
+        "data": {
+            "user": {
+                "username": row["username"],
+                "last_login": row["last_login"],
+                "totp_enabled": bool(row["totp_enabled"]),
+                "must_change_password": bool(row["must_change_password"]),
+            },
+        },
+    })
+    _set_auth_cookies(response, access_token, refresh_token, request, body.remember)
+    return response
 
 
 @router.post("/logout")

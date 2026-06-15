@@ -6,7 +6,7 @@
  *
  * Data: GET /api/services + POST /api/services/{name}/{action}
  */
-import { el, clear, $ } from '../utils/dom.js';
+import { el, clear, $, escapeHtml } from '../utils/dom.js';
 import { comm } from '../comm.js';
 const { get, post } = comm.rest;
 import { notify } from '../utils/notify.js';
@@ -100,7 +100,7 @@ function _svcCardHTML(svc) {
     : status === 'failed' ? 'svc-mgmt-card__dot--failed' : 'svc-mgmt-card__dot--inactive';
   const canStart = status !== 'active';
   const canStop = status === 'active';
-  const s = _esc;
+  const s = escapeHtml;
 
   return `<div class="svc-mgmt-card">
     <span class="svc-mgmt-card__icon">${icon('server')}</span>
@@ -141,13 +141,13 @@ function renderCustomServices() {
   grid.innerHTML = services.length
     ? '<div class="svc-grid">' + services.map(s => {
         const dotClass = 'svc-mgmt-card__dot--inactive';
-        const sid = _esc(s.id);
+        const sid = escapeHtml(s.id);
         return `<div class="svc-mgmt-card" data-svc-id="${sid}">
           <span class="svc-mgmt-card__icon">${icon('box')}</span>
           <span class="svc-mgmt-card__dot ${dotClass}"></span>
           <span class="svc-mgmt-card__body">
-            <div class="svc-mgmt-card__name">${_esc(s.name)}</div>
-            <div class="svc-mgmt-card__desc">${_esc(s.desc || '')}</div>
+            <div class="svc-mgmt-card__name">${escapeHtml(s.name)}</div>
+            <div class="svc-mgmt-card__desc">${escapeHtml(s.desc || '')}</div>
           </span>
           <span class="svc-mgmt-card__actions">
             <button class="panel__btn panel__btn--sm svc-act-edit" data-svc-edit="${sid}">✎</button>
@@ -241,7 +241,6 @@ function openSvcEdit(svc) {
   }
 }
 
-function _esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
 // ═══════════════════════════════════════════════════════════
 //  Cleanup

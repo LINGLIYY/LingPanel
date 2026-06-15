@@ -4,7 +4,7 @@
  * Log source selector, level/regex filter, expandable messages.
  * Data: GET /api/logs/sources + GET /api/logs/read
  */
-import { el, clear, $ } from '../utils/dom.js';
+import { el, clear, $, escapeHtml } from '../utils/dom.js';
 import { comm } from '../comm.js';
 const { get } = comm.rest;
 import { notify } from '../utils/notify.js';
@@ -79,10 +79,10 @@ function renderLogLines(data, body) {
   body.innerHTML = `<table class="log-table">
     <thead><tr><th>时间</th><th>级别</th><th>来源</th><th>消息</th></tr></thead>
     <tbody>${lines.map(l => `<tr>
-      <td style="white-space:nowrap">${_esc(l.timestamp || l.time || '--')}</td>
+      <td style="white-space:nowrap">${escapeHtml(l.timestamp || l.time || '--')}</td>
       <td>${_levelBadge(l.level || 'info')}</td>
-      <td>${_esc(l.source || l.host || '--')}</td>
-      <td><span class="log-msg">${_esc(l.message || l.msg || '')}</span></td>
+      <td>${escapeHtml(l.source || l.host || '--')}</td>
+      <td><span class="log-msg">${escapeHtml(l.message || l.msg || '')}</span></td>
     </tr>`).join('')}</tbody></table>`;
 
   // Click to expand
@@ -97,9 +97,8 @@ function _levelBadge(level) {
   if (l.includes('warn')) return '<span class="level-badge level-badge--warning">WARN</span>';
   if (l.includes('info')) return '<span class="level-badge level-badge--info">INFO</span>';
   if (l.includes('debug')) return '<span class="level-badge level-badge--debug">DEBUG</span>';
-  return `<span class="level-badge">${_esc(level)}</span>`;
+  return `<span class="level-badge">${escapeHtml(level)}</span>`;
 }
 
-function _esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
 export function cleanup() {}

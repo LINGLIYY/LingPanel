@@ -1,13 +1,15 @@
 /**
  * LingServer Dashboard — Control Bar (Debug Panel)
  *
- * Background layer toggles, image cycling, light/dark image pools.
+ * Background layer toggles, image cycling with dynamic dark/light pools.
  * This module wires up the control bar HTML that exists in index.html.
  */
 import { $, $$ } from './dom.js';
+import { comm } from '../comm.js';
+const { get } = comm.rest;
 
 /** Initialize the debug panel layer toggles and image cycling. */
-export function initControlBar() {
+export async function initControlBar() {
   const codeBg = document.querySelector('.code-bg');
   const ribbonCanvas = document.getElementById('ribbon-canvas');
   const blobs = document.querySelectorAll('.blob');
@@ -64,15 +66,35 @@ export function initControlBar() {
     });
   }
 
-  // ── Image cycling (dark/light pools) ──
-  const IMG_DARK = ['bg-image.jpg', '初音未来2.jpg', '初音未来4.jpg', '初音未来5.jpg', '初音未来7.jpg'];
-  const IMG_LIGHT = ['bg-image-light.png', '初音未来3.jpg', '初音未来8.jpg', '深海少女.jpg', '初音未来6.jpg'];
-  let darkIdx = 0, lightIdx = 0;
+  // ── Image cycling (dynamic from backgrounds/ API) ──
+  const bgImgDark = bgImgWrap ? bgImgWrap.querySelector('.bg-img-dark') : null;
+  const bgImgLight = bgImgWrap ? bgImgWrap.querySelector('.bg-img-light') : null;
   const imgLabel = document.querySelector('.ctrl-img-label');
   const prevBtn = document.getElementById('ctrl-img-prev');
   const nextBtn = document.getElementById('ctrl-img-next');
-  const bgImgDark = bgImgWrap ? bgImgWrap.querySelector('.bg-img-dark') : null;
-  const bgImgLight = bgImgWrap ? bgImgWrap.querySelector('.bg-img-light') : null;
+
+  let IMG_DARK = [];
+  let IMG_LIGHT = [];
+  let darkIdx = 0;
+  let lightIdx = 0;
+
+  // Fetch available images from the server
+  try {
+    const data = await get('/api/system/backgrounds');
+    IMG_DARK = data.dark || [];
+    IMG_LIGHT = data.light || [];
+  } catch (_) {
+    // No images available — cycling controls do nothing
+  }
+
+  // Set initial image if available
+  if (IMG_DARK.length && bgImgDark) {
+    bgImgDark.src = `backgrounds/dark/${IMG_DARK[0]}`;
+    bgImgDark.style.display = '';
+  }
+  if (IMG_LIGHT.length && bgImgLight) {
+    bgImgLight.src = `backgrounds/light/${IMG_LIGHT[0]}`;
+  }
 
   function getPool() {
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
@@ -81,20 +103,22 @@ export function initControlBar() {
 
   function updateImageLabel() {
     const { pool, idx } = getPool();
-    if (imgLabel) imgLabel.textContent = `${idx + 1}/${pool.length}`;
+    if (imgLabel) imgLabel.textContent = pool.length ? `${idx + 1}/${pool.length}` : '0/0';
   }
 
   function applyImage() {
     const { pool, idx } = getPool();
+    if (!pool.length) return;
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-    const src = pool[idx];
-    if (isLight && bgImgLight) bgImgLight.src = `dame/登录页/${src}`;
-    else if (!isLight && bgImgDark) bgImgDark.src = `dame/登录页/${src}`;
+    const src = `backgrounds/${isLight ? 'light' : 'dark'}/${pool[idx]}`;
+    if (isLight && bgImgLight) bgImgLight.src = src;
+    else if (!isLight && bgImgDark) bgImgDark.src = src;
     updateImageLabel();
   }
 
   function navigate(delta) {
     const { pool } = getPool();
+    if (!pool.length) return;
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
     if (isLight) lightIdx = (lightIdx + delta + pool.length) % pool.length;
     else darkIdx = (darkIdx + delta + pool.length) % pool.length;

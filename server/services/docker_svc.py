@@ -22,15 +22,9 @@ def _get_client():
 
     try:
         import docker
-        # Parse DOCKER_SOCKET — on Windows it might be tcp:// or npipe://
-        if DOCKER_SOCKET.startswith("unix://"):
-            _docker_client = docker.DockerClient(base_url=DOCKER_SOCKET)
-        elif DOCKER_SOCKET.startswith("tcp://"):
-            _docker_client = docker.DockerClient(base_url=DOCKER_SOCKET)
-        elif DOCKER_SOCKET.startswith("npipe://"):
-            _docker_client = docker.DockerClient(base_url=DOCKER_SOCKET)
-        else:
-            _docker_client = docker.from_env()
+        # Parse DOCKER_SOCKET — supports unix://, tcp://, npipe://, or docker.from_env()
+        _known = ("unix://", "tcp://", "npipe://")
+        _docker_client = docker.DockerClient(base_url=DOCKER_SOCKET) if DOCKER_SOCKET.startswith(_known) else docker.from_env()
 
         # Test connection
         _docker_client.ping()

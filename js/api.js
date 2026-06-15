@@ -75,52 +75,28 @@ async function refreshToken() {
   }
 }
 
-/**
- * GET request → parsed JSON.
- */
+async function _handleResponse(res) {
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, body.detail || res.statusText, body);
+  }
+  return res.json();
+}
+
 export async function get(path) {
-  const res = await request(path);
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, body.detail || res.statusText, body);
-  }
-  return res.json();
+  return _handleResponse(await request(path));
 }
 
-/**
- * POST request → parsed JSON.
- */
 export async function post(path, data) {
-  const res = await request(path, { method: 'POST', body: data });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, body.detail || res.statusText, body);
-  }
-  return res.json();
+  return _handleResponse(await request(path, { method: 'POST', body: data }));
 }
 
-/**
- * DELETE request.
- */
 export async function del(path) {
-  const res = await request(path, { method: 'DELETE' });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, body.detail || res.statusText, body);
-  }
-  return res.json();
+  return _handleResponse(await request(path, { method: 'DELETE' }));
 }
 
-/**
- * PUT request → parsed JSON.
- */
 export async function put(path, data) {
-  const res = await request(path, { method: 'PUT', body: data });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, body.detail || res.statusText, body);
-  }
-  return res.json();
+  return _handleResponse(await request(path, { method: 'PUT', body: data }));
 }
 
 /**
@@ -150,8 +126,3 @@ export const authApi = {
     post('/api/auth/change-password', { old_password: oldPassword, new_password: newPassword }),
 };
 
-// ── Convenience: system ──
-
-export const systemApi = {
-  info: () => get('/api/system'),
-};

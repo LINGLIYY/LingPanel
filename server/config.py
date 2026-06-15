@@ -48,6 +48,9 @@ LOG_SOURCES = json.loads(os.getenv("LING_LOG_SOURCES", json.dumps(_DEFAULT_LOG_S
 LOG_TAIL_LINES = int(os.getenv("LING_LOG_TAIL", "500"))
 LOG_MAX_FILE_MB = int(os.getenv("LING_LOG_MAX_MB", "100"))
 
+# ── Backgrounds ──
+BACKGROUNDS_DIR = os.getenv("LING_BACKGROUNDS_DIR", str(BASE_DIR / "backgrounds"))
+
 # ── Terminal ──
 TERMINAL_MAX_SESSIONS = int(os.getenv("LING_TERM_MAX_SESSIONS", "5"))
 TERMINAL_IDLE_TIMEOUT_MINUTES = int(os.getenv("LING_TERM_TIMEOUT", "30"))

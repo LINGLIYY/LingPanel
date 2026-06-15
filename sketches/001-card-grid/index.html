@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LingServer Settings · Card Grid</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Fira+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Project Design Tokens ── */
+:root {
+  --font-mono: 'Fira Code', 'Cascadia Code', monospace;
+  --font-sans: 'Fira Sans', system-ui, sans-serif;
+  --neon:    oklch(0.72 0.22 160);
+  --neon-dim: oklch(0.38 0.16 195);
+  --blue:    oklch(0.55 0.18 255);
+  --red:     oklch(0.55 0.22 25);
+  --yellow:  oklch(0.75 0.15 85);
+  --t-bright: oklch(0.85 0.02 260);
+  --t-body:   oklch(0.60 0.02 260);
+  --t-muted:  oklch(0.40 0.01 260);
+  --t-dim:    oklch(0.30 0.01 260);
+  --card-outer-bg: oklch(0.10 0.01 260 / 0.35);
+  --card-outer-border: oklch(1 0 0 / 0.06);
+  --card-inner-bg: oklch(0.08 0.01 260 / 0.88);
+  --card-inner-border: oklch(1 0 0 / 0.09);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --gap: 8px;
+  --radius: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  background: #000;
+  color: var(--t-body);
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: oklch(1 0 0 / 0.10); border-radius: 4px; }
+
+/* ── Layout Shell ── */
+.app { display: flex; flex-direction: column; height: 100vh; }
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 52px; padding: 0 16px;
+  background: oklch(0.06 0.01 260 / 0.95);
+  border-bottom: 1px solid var(--card-outer-border);
+  flex-shrink: 0;
+}
+.header__left { display: flex; align-items: center; gap: 8px; }
+.header__back {
+  display: flex; align-items: center; gap: 4px;
+  color: var(--t-muted); font-size: 13px; cursor: pointer;
+  background: none; border: none; font-family: inherit;
+  transition: color 150ms var(--ease-out);
+}
+.header__back:hover { color: var(--t-bright); }
+.header__back svg { width: 16px; height: 16px; }
+.header__title { font-size: 14px; font-weight: 500; color: var(--t-bright); }
+.header__right { display: flex; align-items: center; gap: 12px; }
+.header__save {
+  background: oklch(0.45 0.12 160); color: #000;
+  border: none; border-radius: 6px; padding: 6px 14px;
+  font-size: 12px; font-weight: 500; font-family: inherit; cursor: pointer;
+  transition: background 150ms var(--ease-out);
+}
+.header__save:hover { background: oklch(0.55 0.14 160); }
+.header__save:disabled { opacity: 0.4; cursor: default; }
+
+.content {
+  flex: 1; overflow-y: auto; padding: 20px 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  align-content: start; gap: 16px;
+}
+
+/* ── Card ── */
+.card {
+  background: var(--card-outer-bg);
+  border: 1px solid var(--card-outer-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color 200ms var(--ease-out);
+}
+.card:hover { border-color: oklch(1 0 0 / 0.10); }
+.card__header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 0;
+}
+.card__icon {
+  display: flex; align-items: center; gap: 8px;
+  color: var(--neon); font-size: 13px; font-weight: 500;
+}
+.card__icon svg { width: 16px; height: 16px; }
+.card__badge {
+  font-size: 10px; font-weight: 500; font-family: var(--font-mono);
+  padding: 2px 8px; border-radius: 999px;
+  background: oklch(0.15 0.03 160 / 0.6);
+  color: var(--neon);
+}
+.card__body { padding: 12px 16px 16px; }
+.card__desc {
+  font-size: 12px; color: var(--t-muted);
+  margin-bottom: 12px; line-height: 1.4;
+}
+
+/* ── Field ── */
+.field { margin-bottom: 10px; }
+.field:last-child { margin-bottom: 0; }
+.field__label {
+  display: block; font-size: 11px; font-weight: 500;
+  color: var(--t-dim); margin-bottom: 4px;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.field__input {
+  width: 100%; background: var(--card-inner-bg);
+  border: 1px solid var(--card-inner-border);
+  border-radius: 6px; padding: 8px 10px;
+  font-size: 13px; font-family: var(--font-mono);
+  color: var(--t-bright);
+  outline: none;
+  transition: border-color 150ms var(--ease-out);
+}
+.field__input:focus { border-color: var(--neon-dim); }
+.field__input::placeholder { color: var(--t-dim); }
+.field__input--sm { width: 80px; text-align: center; }
+
+.field__row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+}
+.field__row .field__label { margin-bottom: 0; }
+
+/* ── Toggle (iOS style) ── */
+.toggle {
+  position: relative; width: 36px; height: 20px; flex-shrink: 0;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle__slider {
+  position: absolute; inset: 0;
+  background: oklch(0.25 0.01 260);
+  border-radius: 20px; cursor: pointer;
+  transition: background 200ms var(--ease-out);
+}
+.toggle__slider::before {
+  content: ''; position: absolute;
+  left: 2px; top: 2px; width: 16px; height: 16px;
+  background: var(--t-bright); border-radius: 50%;
+  transition: transform 200ms var(--ease-out);
+}
+.toggle input:checked + .toggle__slider { background: var(--neon-dim); }
+.toggle input:checked + .toggle__slider::before { transform: translateX(16px); }
+.toggle input:focus-visible + .toggle__slider { outline: 2px solid var(--neon); outline-offset: 2px; }
+
+/* ── Select ── */
+.field__select {
+  background: var(--card-inner-bg); color: var(--t-bright);
+  border: 1px solid var(--card-inner-border); border-radius: 6px;
+  padding: 8px 10px; font-size: 13px; font-family: var(--font-mono);
+  cursor: pointer; outline: none; width: 100%;
+}
+.field__select:focus { border-color: var(--neon-dim); }
+
+/* ── Button Row ── */
+.btn-row { display: flex; gap: 8px; margin-top: 8px; }
+.btn {
+  padding: 6px 14px; font-size: 12px; font-weight: 500;
+  border-radius: 6px; cursor: pointer; border: none;
+  font-family: inherit;
+  transition: all 150ms var(--ease-out);
+}
+.btn--danger {
+  background: oklch(0.15 0.05 25 / 0.5);
+  color: var(--red); border: 1px solid oklch(0.25 0.05 25);
+}
+.btn--danger:hover { background: oklch(0.20 0.06 25 / 0.6); }
+.btn--ghost {
+  background: oklch(1 0 0 / 0.04); color: var(--t-body);
+  border: 1px solid var(--card-outer-border);
+}
+.btn--ghost:hover { background: oklch(1 0 0 / 0.08); color: var(--t-bright); }
+
+/* ── Toast ── */
+.toast-container { position: fixed; top: 60px; right: 16px; z-index: 9999; }
+.toast {
+  padding: 10px 16px; border-radius: 8px; font-size: 12px;
+  background: var(--card-inner-bg); color: var(--t-bright);
+  border: 1px solid var(--card-inner-border);
+  box-shadow: 0 4px 24px oklch(0 0 0 / 0.6);
+  margin-bottom: 8px;
+  animation: toastIn 250ms var(--ease-out);
+  display: flex; align-items: center; gap: 8px;
+}
+.toast--saved { color: var(--neon); border-color: oklch(0.35 0.10 160); }
+.toast--error { color: var(--red); border-color: oklch(0.25 0.08 25); }
+.toast svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Focus ring ── */
+:focus-visible { outline: 2px solid var(--neon); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Header -->
+  <header class="header">
+    <div class="header__left">
+      <button class="header__back" onclick="history.back()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m0 0l7 7m-7-7l7-7"/></svg>
+        返回
+      </button>
+      <span class="header__title">⚙ 设置</span>
+    </div>
+    <div class="header__right">
+      <button class="header__save" id="save-btn" disabled onclick="saveAll()">保存全部</button>
+    </div>
+  </header>
+
+  <!-- Content Grid -->
+  <main class="content">
+
+    <!-- Card: General -->
+    <section class="card">
+      <div class="card__header">
+        <div class="card__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          通用设置
+        </div>
+        <span class="card__badge">GENERAL</span>
+      </div>
+      <div class="card__body">
+        <p class="card__desc">全局面板行为和外观偏好。</p>
+        <div class="field">
+          <div class="field__row">
+            <label class="field__label" for="refresh-interval">指标刷新间隔</label>
+            <input class="field__input field__input--sm" id="refresh-interval" type="number" value="1" min="1" max="60" oninput="markDirty()">
+          </div>
+        </div>
+        <div class="field">
+          <div class="field__row">
+            <label class="field__label" for="retention-days">指标保留天数</label>
+            <input class="field__input field__input--sm" id="retention-days" type="number" value="7" min="1" max="90" oninput="markDirty()">
+          </div>
+        </div>
+        <div class="field">
+          <div class="field__row">
+            <label class="field__label" for="terminal-timeout">终端闲置超时 (分钟)</label>
+            <input class="field__input field__input--sm" id="terminal-timeout" type="number" value="30" min="5" max="120" oninput="markDirty()">
+          </div>
+        </div>
+        <div class="field">
+          <div class="field__row">
+            <label class="field__label">调试面板</label>
+            <label class="toggle">
+              <input type="checkbox" id="debug-panel" onchange="markDirty()" checked>
+              <span class="toggle__slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Card: Account -->
+    <section class="card">
+      <div class="card__header">
+        <div class="card__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          账户安全
+        </div>
+        <span class="card__badge">ACCOUNT</span>
+      </div>
+      <div class="card__body">
+        <p class="card__desc">修改管理员密码和安全设置。</p>
+        <div class="field">
+          <label class="field__label" for="old-pw">当前密码</label>
+          <input class="field__input" id="old-pw" type="password" autocomplete="current-password" placeholder="输入当前密码">
+        </div>
+        <div class="field">
+          <label class="field__label" for="new-pw">新密码 (至少 8 位)</label>
+          <input class="field__input" id="new-pw" type="password" autocomplete="new-password" placeholder="输入新密码">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn--ghost" onclick="showToast('密码已更新', 'saved')">更新密码</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Card: Alert Rules -->
+    <section class="card">
+      <div class="card__header">
+        <div class="card__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          告警规则
+        </div>
+        <span class="card__badge">ALERTS</span>
+      </div>
+      <div class="card__body">
+        <p class="card__desc">配置系统指标告警阈值和通知方式。</p>
+        <div class="field">
+          <div class="field__row">
+            <label class="field__label" for="alert-cpu">CPU 告警 (%)</label>
+            <input class="field__input field__input--sm" id="alert-cpu" type="number" value="90" min="0" max="100" oninput="markDirty()">
+          </div>
+        </div>
+        <div class="field">
+          <div class="field__row">
+            <label class="field__label" for="alert-mem">内存告警 (%)</label>
+            <input class="field__input field__input--sm" id="alert-mem" type="number" value="95" min="0" max="100" oninput="markDirty()">
+          </div>
+        </div>
+        <div class="field">
+          <div class="field__row">
+            <label class="field__label" for="alert-disk">磁盘告警 (%)</label>
+            <input class="field__input field__input--sm" id="alert-disk" type="number" value="85" min="0" max="100" oninput="markDirty()">
+          </div>
+        </div>
+        <div class="field">
+          <label class="field__label" for="alert-duration">持续时间 (秒) — 超过阈值持续多久后触发</label>
+          <input class="field__input field__input--sm" id="alert-duration" type="number" value="300" min="10" max="3600" oninput="markDirty()">
+        </div>
+        <div class="field">
+          <label class="field__label" for="alert-action">通知方式</label>
+          <select class="field__select" id="alert-action" onchange="markDirty()">
+            <option value="browser" selected>浏览器弹窗</option>
+            <option value="webhook">Webhook</option>
+          </select>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn--ghost" onclick="showToast('规则已保存', 'saved')">保存</button>
+          <button class="btn btn--danger" onclick="showToast('规则已重置', 'saved')">重置默认</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Card: Audit & Data -->
+    <section class="card">
+      <div class="card__header">
+        <div class="card__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          审计与数据
+        </div>
+        <span class="card__badge">AUDIT</span>
+      </div>
+      <div class="card__body">
+        <p class="card__desc">查看审计日志和管理数据库。</p>
+        <div class="field">
+          <div class="field__row">
+            <span class="field__label">终端命令审计</span>
+            <span style="font-size:11px;color:var(--t-dim);font-family:var(--font-mono)">1,247 条</span>
+          </div>
+        </div>
+        <div class="field">
+          <div class="field__row">
+            <span class="field__label">登录审计</span>
+            <span style="font-size:11px;color:var(--t-dim);font-family:var(--font-mono)">89 条</span>
+          </div>
+        </div>
+        <div class="field">
+          <div class="field__row">
+            <span class="field__label">告警历史</span>
+            <span style="font-size:11px;color:var(--t-dim);font-family:var(--font-mono)">23 条</span>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn--ghost" onclick="showToast('导出 audit.json 成功', 'saved')">导出审计日志</button>
+          <button class="btn btn--danger" onclick="showToast('已清理 365+ 天数据', 'saved')">清理旧数据</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Card: Backgrounds -->
+    <section class="card">
+      <div class="card__header">
+        <div class="card__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          登录背景
+        </div>
+        <span class="card__badge">BG</span>
+      </div>
+      <div class="card__body">
+        <p class="card__desc">管理登录页的背景壁纸（放入 backgrounds/dark/ 或 backgrounds/light/ 目录）。</p>
+        <div class="field">
+          <label class="field__label">深色主题</label>
+          <select class="field__select" onchange="markDirty()">
+            <option>bg-dark-01.jpg</option>
+            <option>bg-dark-02.png</option>
+            <option selected>none</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field__label">浅色主题</label>
+          <select class="field__select" onchange="markDirty()">
+            <option>bg-light-01.jpg</option>
+            <option selected>none</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- Card: About -->
+    <section class="card">
+      <div class="card__header">
+        <div class="card__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          关于
+        </div>
+        <span class="card__badge">ABOUT</span>
+      </div>
+      <div class="card__body">
+        <p class="card__desc">LingServer Dashboard v2.0.0<br>Python FastAPI + Vanilla JS · SQLite</p>
+        <div class="field">
+          <span style="font-size:11px;color:var(--t-dim);font-family:var(--font-mono)">
+            Host: ubuntu-server · Uptime: 12d 4h<br>
+            Commit: a1b2c3d · DB: v5 (WAL)
+          </span>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn--ghost" onclick="showToast('已下载 ling-server.db', 'saved')">备份数据库</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ── Dirty tracking ──
+let _dirty = false;
+function markDirty() {
+  _dirty = true;
+  const btn = document.getElementById('save-btn');
+  btn.disabled = false;
+  btn.textContent = '保存全部 *';
+}
+
+// ── Save simulation ──
+function saveAll() {
+  _dirty = false;
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = '保存全部';
+  showToast('所有设置已保存', 'saved');
+}
+
+// ── Toast ──
+function showToast(msg, type) {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast toast--' + (type || 'saved');
+
+  const icons = {
+    saved: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+  };
+  el.innerHTML = (icons[type] || icons.saved) + ' ' + msg;
+  container.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 200ms ease-out'; }, 2500);
+  setTimeout(() => el.remove(), 2900);
+}
+</script>
+</body>
+</html>

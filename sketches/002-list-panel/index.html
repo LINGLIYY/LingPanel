@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LingServer Settings · List Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Fira+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --font-mono: 'Fira Code', 'Cascadia Code', monospace;
+  --font-sans: 'Fira Sans', system-ui, sans-serif;
+  --neon:    oklch(0.72 0.22 160);
+  --neon-dim: oklch(0.38 0.16 195);
+  --red:     oklch(0.55 0.22 25);
+  --t-bright: oklch(0.85 0.02 260);
+  --t-body:   oklch(0.60 0.02 260);
+  --t-muted:  oklch(0.40 0.01 260);
+  --t-dim:    oklch(0.30 0.01 260);
+  --card-outer-border: oklch(1 0 0 / 0.06);
+  --card-inner-bg: oklch(0.08 0.01 260 / 0.88);
+  --card-inner-border: oklch(1 0 0 / 0.09);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  background: #000; color: var(--t-body);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+}
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: oklch(1 0 0 / 0.10); border-radius: 4px; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 220px; flex-shrink: 0; height: 100vh;
+  background: oklch(0.04 0.01 260 / 0.98);
+  border-right: 1px solid var(--card-outer-border);
+  display: flex; flex-direction: column; overflow-y: auto;
+}
+.sidebar__brand {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px; color: var(--neon); font-weight: 600;
+  font-size: 13px; border-bottom: 1px solid var(--card-outer-border);
+}
+.sidebar__brand svg { width: 20px; height: 20px; }
+.sidebar__nav { flex: 1; padding: 8px; }
+.sidebar__group-label {
+  font-size: 10px; font-weight: 500; text-transform: uppercase;
+  color: var(--t-dim); padding: 12px 10px 6px; letter-spacing: 0.8px;
+}
+.sidebar__item {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 8px 10px; border-radius: 6px;
+  font-size: 13px; font-family: inherit; color: var(--t-muted);
+  background: none; border: none; cursor: pointer;
+  text-align: left; margin-bottom: 2px;
+  transition: all 120ms var(--ease-out);
+}
+.sidebar__item:hover { color: var(--t-bright); background: oklch(1 0 0 / 0.04); }
+.sidebar__item--active {
+  color: var(--neon); background: oklch(0.15 0.03 160 / 0.2);
+}
+.sidebar__item--active:hover { background: oklch(0.18 0.04 160 / 0.25); }
+.sidebar__item svg { width: 16px; height: 16px; flex-shrink: 0; }
+.sidebar__version {
+  padding: 12px 16px; font-size: 11px; color: var(--t-dim);
+  border-top: 1px solid var(--card-outer-border);
+}
+
+/* ── Main Panel ── */
+.main {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+}
+.main__header {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 52px; padding: 0 20px; flex-shrink: 0;
+  border-bottom: 1px solid var(--card-outer-border);
+}
+.main__title { font-size: 15px; font-weight: 600; color: var(--t-bright); }
+.main__back {
+  display: flex; align-items: center; gap: 4px;
+  color: var(--t-muted); font-size: 13px; background: none;
+  border: none; font-family: inherit; cursor: pointer;
+}
+.main__back:hover { color: var(--t-bright); }
+.main__save {
+  background: oklch(0.45 0.12 160); color: #000;
+  border: none; border-radius: 6px; padding: 6px 14px;
+  font-size: 12px; font-weight: 500; font-family: inherit; cursor: pointer;
+  transition: background 150ms var(--ease-out);
+}
+.main__save:hover { background: oklch(0.55 0.14 160); }
+.main__save:disabled { opacity: 0.4; cursor: default; }
+.main__body { flex: 1; overflow-y: auto; padding: 24px 28px; }
+
+/* ── Settings Section ── */
+.section { margin-bottom: 28px; display: none; }
+.section--visible { display: block; }
+.section__title {
+  font-size: 13px; font-weight: 600; color: var(--t-bright);
+  margin-bottom: 4px;
+}
+.section__desc {
+  font-size: 12px; color: var(--t-muted); margin-bottom: 16px;
+  line-height: 1.5;
+}
+.setting {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 14px 0; border-bottom: 1px solid oklch(1 0 0 / 0.04);
+  gap: 24px;
+}
+.setting:first-of-type { border-top: 1px solid oklch(1 0 0 / 0.04); }
+.setting__info { flex: 1; min-width: 0; }
+.setting__label { font-size: 13px; font-weight: 500; color: var(--t-bright); margin-bottom: 2px; }
+.setting__hint { font-size: 11px; color: var(--t-dim); line-height: 1.4; }
+.setting__control {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  min-width: 160px; justify-content: flex-end;
+}
+.setting__control--wide { min-width: 280px; }
+.setting__input {
+  background: var(--card-inner-bg); border: 1px solid var(--card-inner-border);
+  border-radius: 6px; padding: 6px 10px;
+  font-size: 13px; font-family: var(--font-mono); color: var(--t-bright);
+  outline: none; width: 100%;
+  transition: border-color 150ms var(--ease-out);
+}
+.setting__input:focus { border-color: var(--neon-dim); }
+.setting__input--sm { width: 80px; text-align: center; }
+.setting__select {
+  background: var(--card-inner-bg); color: var(--t-bright);
+  border: 1px solid var(--card-inner-border); border-radius: 6px;
+  padding: 6px 10px; font-size: 13px; font-family: var(--font-mono);
+  cursor: pointer; outline: none;
+}
+.setting__select:focus { border-color: var(--neon-dim); }
+
+/* ── Toggle ── */
+.toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle__slider {
+  position: absolute; inset: 0; background: oklch(0.25 0.01 260);
+  border-radius: 20px; cursor: pointer;
+  transition: background 200ms var(--ease-out);
+}
+.toggle__slider::before {
+  content: ''; position: absolute;
+  left: 2px; top: 2px; width: 16px; height: 16px;
+  background: var(--t-bright); border-radius: 50%;
+  transition: transform 200ms var(--ease-out);
+}
+.toggle input:checked + .toggle__slider { background: var(--neon-dim); }
+.toggle input:checked + .toggle__slider::before { transform: translateX(16px); }
+
+/* ── Buttons ── */
+.setting__btn {
+  padding: 5px 12px; font-size: 12px; font-weight: 500;
+  border-radius: 6px; cursor: pointer; border: none;
+  font-family: inherit; white-space: nowrap;
+  transition: all 150ms var(--ease-out);
+}
+.setting__btn--ghost {
+  background: oklch(1 0 0 / 0.04); color: var(--t-body);
+  border: 1px solid var(--card-outer-border);
+}
+.setting__btn--ghost:hover { background: oklch(1 0 0 / 0.08); color: var(--t-bright); }
+.setting__btn--danger {
+  background: oklch(0.15 0.05 25 / 0.5);
+  color: var(--red); border: 1px solid oklch(0.25 0.05 25);
+}
+.setting__btn--danger:hover { background: oklch(0.20 0.06 25 / 0.6); }
+
+/* ── Audit stats row ── */
+.audit-row {
+  display: flex; gap: 12px; margin-bottom: 16px;
+}
+.audit-stat {
+  flex: 1; padding: 10px 14px; border-radius: 6px;
+  background: oklch(0.08 0.01 260 / 0.5);
+  border: 1px solid oklch(1 0 0 / 0.04);
+}
+.audit-stat__label { font-size: 11px; color: var(--t-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+.audit-stat__value { font-size: 20px; font-weight: 600; color: var(--t-bright); font-family: var(--font-mono); }
+
+/* ── Toast ── */
+.toast-container { position: fixed; top: 60px; right: 16px; z-index: 9999; }
+.toast {
+  padding: 10px 16px; border-radius: 8px; font-size: 12px;
+  background: oklch(0.12 0.01 260 / 0.95); color: var(--t-bright);
+  border: 1px solid var(--card-inner-border);
+  box-shadow: 0 4px 24px oklch(0 0 0 / 0.7);
+  margin-bottom: 8px;
+  animation: toastIn 250ms var(--ease-out);
+  display: flex; align-items: center; gap: 8px;
+}
+.toast--saved { color: var(--neon); border-color: oklch(0.35 0.10 160); }
+.toast--error { color: var(--red); border-color: oklch(0.25 0.08 25); }
+.toast svg { width: 14px; height: 14px; flex-shrink: 0; }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+:focus-visible { outline: 2px solid var(--neon); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar__brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    设置
+  </div>
+  <div class="sidebar__nav">
+    <div class="sidebar__group-label">核心</div>
+    <button class="sidebar__item sidebar__item--active" data-section="general" onclick="switchSection('general', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l-.06-.06a2 2 0 0 1 2.83 2.83l.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      通用
+    </button>
+    <button class="sidebar__item" data-section="account" onclick="switchSection('account', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      账户安全
+    </button>
+    <button class="sidebar__item" data-section="alerts" onclick="switchSection('alerts', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      告警规则
+    </button>
+    <div class="sidebar__group-label">数据</div>
+    <button class="sidebar__item" data-section="audit" onclick="switchSection('audit', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      审计与数据库
+    </button>
+    <button class="sidebar__item" data-section="bg" onclick="switchSection('bg', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      登录背景
+    </button>
+    <button class="sidebar__item" data-section="about" onclick="switchSection('about', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      关于
+    </button>
+  </div>
+  <div class="sidebar__version">v2.0.0 · DB v5</div>
+</nav>
+
+<!-- Main -->
+<main class="main">
+  <div class="main__header">
+    <button class="main__back" onclick="history.back()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m0 0l7 7m-7-7l7-7"/></svg>
+      返回仪表盘
+    </button>
+    <span class="main__title" id="section-title">通用设置</span>
+    <button class="main__save" id="save-btn" disabled onclick="saveAll()">保存全部</button>
+  </div>
+  <div class="main__body">
+
+    <!-- General -->
+    <div class="section section--visible" id="sec-general">
+      <div class="section__title">通用设置</div>
+      <div class="section__desc">调整面板的全局行为和采集参数。</div>
+
+      <div class="setting">
+        <div class="setting__info">
+          <div class="setting__label">指标刷新间隔</div>
+          <div class="setting__hint">系统指标采集频率（1–60 秒）。更低的间隔会带来更精确的数据，但会增加 CPU 开销。</div>
+        </div>
+        <div class="setting__control">
+          <input class="setting__input setting__input--sm" type="number" value="1" min="1" max="60" oninput="markDirty()">
+          <span style="font-size:11px;color:var(--t-dim)">秒</span>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting__info">
+          <div class="setting__label">指标保留天数</div>
+          <div class="setting__hint">metrics_history 表数据保留时长。超过此期限的数据将被自动清理。</div>
+        </div>
+        <div class="setting__control">
+          <input class="setting__input setting__input--sm" type="number" value="7" min="1" max="90" oninput="markDirty()">
+          <span style="font-size:11px;color:var(--t-dim)">天</span>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting__info">
+          <div class="setting__label">终端闲置超时</div>
+          <div class="setting__hint">终端会话无活动超过此时间后自动断开连接。</div>
+        </div>
+        <div class="setting__control">
+          <input class="setting__input setting__input--sm" type="number" value="30" min="5" max="120" oninput="markDirty()">
+          <span style="font-size:11px;color:var(--t-dim)">分钟</span>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting__info">
+          <div class="setting__label">调试面板</div>
+          <div class="setting__hint">在界面底部显示背景图层控制条，用于切换登录壁纸。</div>
+        </div>
+        <div class="setting__control">
+          <label class="toggle">
+            <input type="checkbox" checked onchange="markDirty()">
+            <span class="toggle__slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Account -->
+    <div class="section" id="sec-account">
+      <div class="section__title">账户安全</div>
+      <div class="section__desc">修改管理员密码。当前用户：<span style="color:var(--neon);font-family:var(--font-mono)">admin</span></div>
+
+      <div class="setting">
+        <div class="setting__info">
+          <div class="setting__label">当前密码</div>
+          <div class="setting__hint">输入当前密码以验证身份。</div>
+        </div>
+        <div class="setting__control setting__control--wide">
+          <input class="setting__input" type="password" placeholder="输入当前密码" autocomplete="current-password">
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting__info">
+          <div class="setting__label">新密码</div>
+          <div class="setting__hint">长度至少 8 位。建议使用密码管理器生成强密码。</div>
+        </div>
+        <div class="setting__control setting__control--wide">
+          <input class="setting__input" type="password" placeholder="输入新密码 (≥8位)" autocomplete="new-password">
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting__info"></div>
+        <div class="setting__control">
+          <button class="setting__btn setting__btn--ghost" onclick="showToast('密码已更新', 'saved')">更新密码</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alerts -->
+    <div class="section" id="sec-alerts">
+      <div class="section__title">告警规则</div>
+      <div class="section__desc">配置系统指标告警阈值。超过阈值并持续指定时间后触发通知。</div>
+
+      <div class="setting">
+        <div class="setting__info">
+          <div class="setting__label">CPU 使用率告警</div>
+          <div class="setting__hint">CPU 使用率超过此百分比并持续达到持续时间后触发。</div>
+        </div>
+        <div class="setting__control">
+          <input class="setting__input setting__input--sm" type="number" value="90" min="0" max="100" oninput="markDirty()">
+          <span style="font-size:11px;color:var(--t-dim)">%</span>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting__info">
+          <div class="setting__label">内存使用率告警</div>
+          <div class="setting__hint">内存使用率超过此百分比并持续达到持续时间后触发。</div>
+        </div>
+        <div class="setting__control">
+          <input class="setting__input setting__input--sm" type="number" value="95" min="0" max="100" oninput="markDirty()">
+          <span style="font-size:11px;color:var(--t-dim)">%</span>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting__info">
+          <div class="setting__label">磁盘使用率告警</div>
+          <div class="setting__hint">任意挂载点的使用率超过此百分比后触发。</div>
+        </div>
+        <div class="setting__control">
+          <input class="setting__input setting__input--sm" type="number" value="85" min="0" max="100" oninput="markDirty()">
+          <span style="font-size:11px;color:var(--t-dim)">%</span>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting__info">
+          <div class="setting__label">持续时间</div>
+          <div class="setting__hint">指标超过阈值持续多久后才触发告警（防止瞬时波动误报）。</div>
+        </div>
+        <div class="setting__control">
+          <input class="setting__input setting__input--sm" type="number" value="300" min="10" max="3600" oninput="markDirty()">
+          <span style="font-size:11px;color:var(--t-dim)">秒</span>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting__info">
+          <div class="setting__label">通知方式</div>
+          <div class="setting__hint">告警通知的发送方式。Webhook 需配置接收 URL。</div>
+        </div>
+        <div class="setting__control">
+          <select class="setting__select" onchange="markDirty()">
+            <option selected>浏览器弹窗</option>
+            <option>Webhook</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting__info"></div>
+        <div class="setting__control" style="gap:8px;">
+          <button class="setting__btn setting__btn--ghost" onclick="showToast('告警规则已保存', 'saved')">保存</button>
+          <button class="setting__btn setting__btn--danger" onclick="showToast('已恢复默认规则', 'saved')">重置</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audit -->
+    <div class="section" id="sec-audit">
+      <div class="section__title">审计与数据库</div>
+      <div class="section__desc">数据库中的审计日志统计和清理操作。</div>
+
+      <div class="audit-row">
+        <div class="audit-stat">
+          <div class="audit-stat__label">终端命令</div>
+          <div class="audit-stat__value">1,247</div>
+        </div>
+        <div class="audit-stat">
+          <div class="audit-stat__label">登录记录</div>
+          <div class="audit-stat__value">89</div>
+        </div>
+        <div class="audit-stat">
+          <div class="audit-stat__label">告警历史</div>
+          <div class="audit-stat__value">23</div>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting__info">
+          <div class="setting__label">终端审计保留天数</div>
+          <div class="setting__hint">terminal_audit 表数据保留时长。默认 90 天。</div>
+        </div>
+        <div class="setting__control">
+          <input class="setting__input setting__input--sm" type="number" value="90" min="7" max="365" oninput="markDirty()">
+          <span style="font-size:11px;color:var(--t-dim)">天</span>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting__info">
+          <div class="setting__label">登录审计保留天数</div>
+          <div class="setting__hint">login_audit 表数据保留时长。默认 180 天。</div>
+        </div>
+        <div class="setting__control">
+          <input class="setting__input setting__input--sm" type="number" value="180" min="7" max="730" oninput="markDirty()">
+          <span style="font-size:11px;color:var(--t-dim)">天</span>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting__info"></div>
+        <div class="setting__control" style="gap:8px;">
+          <button class="setting__btn setting__btn--ghost" onclick="showToast('导出 audit.json 成功', 'saved')">导出审计日志</button>
+          <button class="setting__btn setting__btn--ghost" onclick="showToast('已下载 ling-server.db', 'saved')">备份数据库</button>
+          <button class="setting__btn setting__btn--danger" onclick="showToast('已清理过期数据', 'saved')">清理旧数据</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Backgrounds -->
+    <div class="section" id="sec-bg">
+      <div class="section__title">登录背景图</div>
+      <div class="section__desc">管理登录页面的背景壁纸。将图片放入 backgrounds/dark/ 或 backgrounds/light/ 目录后在此选择。</div>
+
+      <div class="setting">
+        <div class="setting__info">
+          <div class="setting__label">深色主题壁纸</div>
+          <div class="setting__hint">当前深色主题 (<span style="font-family:var(--font-mono);font-size:11px">data-theme="dark"</span>) 使用的壁纸。</div>
+        </div>
+        <div class="setting__control">
+          <select class="setting__select" style="width:160px;">
+            <option selected>无</option>
+            <option>bg-dark-01.jpg</option>
+            <option>bg-dark-02.png</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting__info">
+          <div class="setting__label">浅色主题壁纸</div>
+          <div class="setting__hint">浅色主题 (<span style="font-family:var(--font-mono);font-size:11px">data-theme="light"</span>) 使用的壁纸。</div>
+        </div>
+        <div class="setting__control">
+          <select class="setting__select" style="width:160px;">
+            <option selected>无</option>
+            <option>bg-light-01.jpg</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- About -->
+    <div class="section" id="sec-about">
+      <div class="section__title">关于</div>
+      <div class="section__desc">LingServer Dashboard — 轻量级单页服务器运维面板。</div>
+
+      <div class="setting">
+        <div class="setting__info">
+          <div class="setting__label">版本信息</div>
+          <div class="setting__hint" style="font-family:var(--font-mono);font-size:11px;">
+            Version: 2.0.0<br>
+            Python: 3.11 · FastAPI · SQLite (WAL v5)<br>
+            Frontend: Vanilla JS ES Modules<br>
+            Host: ubuntu-server · Uptime: 12d 4h 32m
+          </div>
+        </div>
+        <div class="setting__control">
+          <button class="setting__btn setting__btn--ghost" onclick="showToast('已下载 ling-server.db', 'saved')">备份</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+let _dirty = false;
+function markDirty() {
+  _dirty = true;
+  const btn = document.getElementById('save-btn');
+  btn.disabled = false; btn.textContent = '保存全部 *';
+}
+function saveAll() {
+  _dirty = false;
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = '保存全部';
+  showToast('所有设置已保存', 'saved');
+}
+
+function switchSection(sectionId, btn) {
+  // Update sidebar active
+  document.querySelectorAll('.sidebar__item').forEach(el => el.classList.remove('sidebar__item--active'));
+  btn.classList.add('sidebar__item--active');
+  // Show/hide sections
+  document.querySelectorAll('.section').forEach(el => el.classList.remove('section--visible'));
+  document.getElementById('sec-' + sectionId).classList.add('section--visible');
+  // Update title
+  const titles = {
+    general: '通用设置', account: '账户安全', alerts: '告警规则',
+    audit: '审计与数据库', bg: '登录背景', about: '关于'
+  };
+  document.getElementById('section-title').textContent = titles[sectionId] || '';
+}
+
+function showToast(msg, type) {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast toast--' + (type || 'saved');
+  const icons = {
+    saved: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+  };
+  el.innerHTML = (icons[type] || icons.saved) + ' ' + msg;
+  container.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 200ms ease-out'; }, 2500);
+  setTimeout(() => el.remove(), 2900);
+}
+</script>
+</body>
+</html>

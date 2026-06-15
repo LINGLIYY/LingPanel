@@ -159,13 +159,6 @@
 @keyframes fadeOut { to   { opacity: 0; } }
 @keyframes scaleIn  { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
 @keyframes scaleOut { to   { opacity: 0; transform: scale(0.92); } }
-@keyframes shake {
-  0%,100% { transform: translateX(0); }
-  20%     { transform: translateX(-5px); }
-  40%     { transform: translateX(5px); }
-  60%     { transform: translateX(-4px); }
-  80%     { transform: translateX(3px); }
-}
 @keyframes focus-ring-in { from { outline-offset: 6px; } to { outline-offset: 2px; } }
 @keyframes dot-pulse {
   0%,100% { box-shadow: 0 0 4px oklch(0.72 0.22 160 / 0.4); }

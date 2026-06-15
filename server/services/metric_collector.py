@@ -13,6 +13,9 @@ network data — no cmdline, environ, or per-process details.
 import asyncio
 import logging
 
+from server.routers.system import _collect_system
+from server.events import MetricEvent
+
 _logger = logging.getLogger("ling.collector")
 
 
@@ -25,19 +28,12 @@ class MetricCollector:
 
     async def run(self):
         """Background task: collect → publish → sleep."""
-        from server.routers.system import _collect_system
-        from server.events import MetricEvent
-
         while True:
             try:
                 data = _collect_system()
-                # MetricEvent.to_dict() adds "type": "metric" — same payload shape
-                # the old inline WS loop produced.
+                # Cache for alert_engine reuse (avoids duplicate psutil calls)
+                self._event_bus.latest_metrics = data
                 await self._event_bus.publish(MetricEvent(data=data))
             except Exception:
                 _logger.warning("Metric collection failed", exc_info=True)
             await asyncio.sleep(self._interval)
-
-    async def shutdown(self):
-        """Cleanup (no persistent resources to release)."""
-        pass

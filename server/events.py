@@ -93,6 +93,9 @@ class EventBus:
         # Per-channel queues for in-process consumers (WS handlers, etc.)
         # channel → list[asyncio.Queue]
         self._queues: dict[str, list[asyncio.Queue]] = {}
+        # Cached latest system metrics — written by MetricCollector, read by AlertEngine
+        # to avoid duplicate psutil calls within the same collection interval.
+        self.latest_metrics: dict[str, float] = {}
 
     # ── Subscription (security: bind user_id) ──
 

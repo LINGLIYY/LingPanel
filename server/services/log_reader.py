@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from server.config import LOG_SOURCES, LOG_TAIL_LINES, LOG_MAX_FILE_MB
+from server.utils import fmt_size
 
 
 def list_sources() -> list[dict[str, Any]]:
@@ -32,7 +33,7 @@ def list_sources() -> list[dict[str, Any]]:
             "path": src["path"],
             "available": exists,
             "size_bytes": size,
-            "size_human": _fmt_size(size),
+            "size_human": fmt_size(size),
         })
     return results
 
@@ -65,7 +66,7 @@ def read_log(
 
     size = path.stat().st_size
     if size > LOG_MAX_FILE_MB * 1024 * 1024:
-        raise ValueError(f"日志文件过大 ({_fmt_size(size)})，上限 {LOG_MAX_FILE_MB}MB")
+        raise ValueError(f"日志文件过大 ({fmt_size(size)})，上限 {LOG_MAX_FILE_MB}MB")
 
     # Read file (streaming, capped at memory limit)
     try:
@@ -214,9 +215,3 @@ def _parse_date_input(d: str) -> datetime | None:
         return None
 
 
-def _fmt_size(n: int) -> str:
-    for u in ["B", "KB", "MB", "GB"]:
-        if n < 1024:
-            return f"{n:.1f} {u}"
-        n /= 1024
-    return f"{n:.1f} TB"

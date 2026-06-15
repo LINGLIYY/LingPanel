@@ -5,11 +5,12 @@
  * Gracefully degrades when Docker is unavailable.
  * Data: GET /api/docker/* + POST /api/docker/containers/{id}/{action}
  */
-import { el, clear, $ } from '../utils/dom.js';
+import { el, clear, $, escapeHtml } from '../utils/dom.js';
 import { comm } from '../comm.js';
 const { get, post } = comm.rest;
 import { notify } from '../utils/notify.js';
 import { confirm } from '../utils/confirm.js';
+import { icon } from '../utils/icons.js';
 
 let _refreshTimer = null;
 
@@ -97,11 +98,11 @@ function renderContainers(containers, body) {
     const name = c.name || c.id?.substring(0, 12) || '--';
     const ports = c.ports ? (Array.isArray(c.ports) ? c.ports.join(', ') : c.ports) : '';
     return `<div class="svc-mgmt-card">
-      <span class="svc-mgmt-card__icon">🐳</span>
+      <span class="svc-mgmt-card__icon">${icon('docker')}</span>
       <span class="svc-mgmt-card__dot ${dotClass}"></span>
       <span class="svc-mgmt-card__body">
-        <div class="svc-mgmt-card__name">${_esc(name)}</div>
-        <div class="svc-mgmt-card__desc">${_esc(c.image || '--')}${ports ? ' · ' + _esc(ports) : ''}</div>
+        <div class="svc-mgmt-card__name">${escapeHtml(name)}</div>
+        <div class="svc-mgmt-card__desc">${escapeHtml(c.image || '--')}${ports ? ' · ' + escapeHtml(ports) : ''}</div>
       </span>
       <span class="svc-mgmt-card__actions">
         ${running
@@ -143,7 +144,7 @@ function renderContainers(containers, body) {
               el('button', { class: 'panel__btn panel__btn--sm', onClick: () => overlay.remove() }, '关闭'),
             ),
             el('pre', { class: 'panel__body', style: 'max-height:60vh;overflow:auto;font-family:var(--font-mono);font-size:11px;white-space:pre-wrap;' },
-              _esc(logs),
+              escapeHtml(logs),
             ),
           ),
         );
@@ -158,13 +159,12 @@ function renderImages(images, body) {
   body.innerHTML = `<div class="svc-grid">${images.map(i => `<div class="svc-mgmt-card">
     <span class="svc-mgmt-card__icon">📦</span>
     <span class="svc-mgmt-card__body">
-      <div class="svc-mgmt-card__name">${_esc(i.tag || i.tags?.[0] || i.repository || i.id?.substring(0, 12) || '--')}</div>
-      <div class="svc-mgmt-card__desc">${_esc(i.created || '')} · ${_esc(i.size_bytes || i.size || '')}</div>
+      <div class="svc-mgmt-card__name">${escapeHtml(i.tag || i.tags?.[0] || i.repository || i.id?.substring(0, 12) || '--')}</div>
+      <div class="svc-mgmt-card__desc">${escapeHtml(i.created || '')} · ${escapeHtml(i.size_bytes || i.size || '')}</div>
     </span>
   </div>`).join('')}</div>`;
 }
 
-function _esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
 export function cleanup() {
   if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }

@@ -4,7 +4,7 @@
  * Sortable process table with kill action, pagination.
  * Data: GET /api/processes + DELETE /api/processes/{pid}
  */
-import { el, clear, $ } from '../utils/dom.js';
+import { el, clear, $, escapeHtml } from '../utils/dom.js';
 import { comm } from '../comm.js';
 const { get, del } = comm.rest;
 import { notify } from '../utils/notify.js';
@@ -74,10 +74,10 @@ function renderTable(data, body) {
     <tbody>${procs.map(p => {
       return `<tr>
         <td>${p.pid}</td>
-        <td style="font-weight:500">${_esc(p.name)}</td>
+        <td style="font-weight:500">${escapeHtml(p.name)}</td>
         <td>${percent(p.cpu_percent || 0)}</td>
         <td>${percent(p.memory_percent || 0)}</td>
-        <td>${_esc(p.username || '--')}</td>
+        <td>${escapeHtml(p.username || '--')}</td>
         <td><span class="status-badge status-badge--neutral">${p.status || '--'}</span></td>
         <td><button class="panel__btn panel__btn--danger panel__btn--sm proc-action" data-kill="${p.pid}">终止</button></td>
       </tr>`;
@@ -129,7 +129,6 @@ function renderTable(data, body) {
   }
 }
 
-function _esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
 export function cleanup() {
   if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }

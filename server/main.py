@@ -95,7 +95,7 @@ def create_app() -> FastAPI:
         coordinator.register(alert_loop(30))
         coordinator.register(MetricCollector(event_bus, interval=1.0).run())
         coordinator.register(_rate_limit_cleanup_loop(ap.state.limiter, interval=300))
-        coordinator.register(_metrics_cleanup_loop())
+        coordinator.register(_audit_cleanup_loop())
         coordinator.register(manager.heartbeat_loop())
 
         yield
@@ -131,12 +131,15 @@ def create_app() -> FastAPI:
     css_dir = STATIC_DIR / "css"
     js_dir = STATIC_DIR / "js"
     dame_dir = STATIC_DIR / "dame"
+    bg_dir = STATIC_DIR / "backgrounds"
     if css_dir.exists():
         app.mount("/css", StaticFiles(directory=str(css_dir)), name="css")
     if js_dir.exists():
         app.mount("/js", StaticFiles(directory=str(js_dir)), name="js")
     if dame_dir.exists():
         app.mount("/dame", StaticFiles(directory=str(dame_dir)), name="dame")
+    if bg_dir.exists():
+        app.mount("/backgrounds", StaticFiles(directory=str(bg_dir)), name="backgrounds")
 
     index_html = STATIC_DIR / "index.html"
     if index_html.exists():
@@ -188,6 +191,10 @@ def create_app() -> FastAPI:
     from server.routers.services import router as services_router
     app.include_router(services_router, dependencies=[Depends(get_current_user)])
 
+    # ── Settings routes (protected) ──
+    from server.routers.settings import router as settings_router
+    app.include_router(settings_router, dependencies=[Depends(get_current_user)])
+
     return app
 
 
@@ -210,23 +217,48 @@ async def _rate_limit_cleanup_loop(limiter, interval: float = 300):
             _bg_log.warning("Rate-limit cleanup failed", exc_info=True)
 
 
-async def _metrics_cleanup_loop():
-    """Background task: prune metrics_history older than METRICS_RETENTION_DAYS."""
+async def _audit_cleanup_loop():
+    """Background task: prune old records from audit/history tables.
+
+    Retention policies:
+      - metrics_history:  METRICS_RETENTION_DAYS (default 7)
+      - terminal_audit:  90 days
+      - alert_history:   90 days
+      - login_audit:     180 days
+    Runs immediately on startup, then every 6 hours.
+    Batches deletes in chunks of 1000 to avoid WAL ballooning.
+    """
     import asyncio as _aio
     from server.config import METRICS_RETENTION_DAYS
     from server.models.database import get_db
 
+    # (table, column, retention_days)
+    _PURGE_POLICIES = [
+        ("metrics_history", "timestamp", METRICS_RETENTION_DAYS),
+        ("terminal_audit", "timestamp", 90),
+        ("alert_history", "triggered_at", 90),
+        ("login_audit", "timestamp", 180),
+    ]
+    BATCH_SIZE = 1000
+
     while True:
-        await _aio.sleep(3600)  # Every hour
         try:
             db = get_db()
-            db.execute(
-                "DELETE FROM metrics_history WHERE timestamp < datetime('now', ?)",
-                (f"-{METRICS_RETENTION_DAYS} days",),
-            )
+            for table, col, days in _PURGE_POLICIES:
+                while True:
+                    cur = db.execute(
+                        f"DELETE FROM {table} WHERE rowid IN "
+                        f"(SELECT rowid FROM {table} WHERE {col} < datetime('now', ?) LIMIT {BATCH_SIZE})",
+                        (f"-{days} days",),
+                    )
+                    if cur.rowcount < BATCH_SIZE:
+                        break
+                    db.commit()
             db.commit()
+            _bg_log.debug("Audit cleanup completed")
         except Exception:
-            _bg_log.warning("Metrics cleanup failed", exc_info=True)
+            _bg_log.warning("Audit cleanup failed", exc_info=True)
+        await _aio.sleep(21600)  # Every 6 hours
 
 
 def _ensure_secret_key():

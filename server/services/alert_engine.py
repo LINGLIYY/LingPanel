@@ -55,38 +55,46 @@ def ensure_default_rules():
 #  Metrics snapshot
 # ═══════════════════════════════════════════════════════════
 
-_cpu_primed = False
-
 async def _get_current_metrics() -> dict[str, float]:
-    """Collect current system metrics (non-blocking via thread executor)."""
-    import psutil
+    """Return current system metrics, preferring EventBus cache.
 
-    global _cpu_primed
-    # Prime psutil on first call so cpu_percent(interval=None) returns real values
-    if not _cpu_primed:
-        psutil.cpu_percent(interval=0.1)  # short blocking call, once
-        _cpu_primed = True
+    Reads from MetricCollector's latest_metrics cache (updated every 1s).
+    Falls back to _collect_system() when the cache is cold or empty.
+    """
+    event_bus = _get_event_bus()
+    cached = event_bus.latest_metrics
 
-    loop = asyncio.get_event_loop()
+    # Use cache if it exists and contains the fields alert_engine needs
+    if cached and "cpu" in cached and "memory" in cached:
+        cpu_data = cached["cpu"]
+        mem_data = cached["memory"]
+        disk_data = cached.get("disks", [])
 
-    def _collect():
-        try:
-            cpu = psutil.cpu_percent(interval=None)
-            mem = psutil.virtual_memory().percent
+        disk_percent = 0
+        if disk_data:
+            disk_percent = max(d.get("percent", 0) for d in disk_data)
 
-            disks = []
-            for part in psutil.disk_partitions():
-                try:
-                    disks.append(psutil.disk_usage(part.mountpoint).percent)
-                except PermissionError:
-                    pass
-            disk = max(disks) if disks else 0
+        return {
+            "cpu_percent": cpu_data.get("percent", 0),
+            "mem_percent": mem_data.get("percent", 0),
+            "disk_percent": disk_percent,
+        }
 
-            return {"cpu_percent": cpu, "mem_percent": mem, "disk_percent": disk}
-        except Exception:
-            return {"cpu_percent": 0, "mem_percent": 0, "disk_percent": 0}
-
-    return await loop.run_in_executor(None, _collect)
+    # ── Fallback: reuse _collect_system() from MetricCollector's canonical source ──
+    from server.routers.system import _collect_system
+    try:
+        snap = _collect_system()
+        cpu_data = snap.get("cpu", {})
+        mem_data = snap.get("memory", {})
+        disk_data = snap.get("disks", [])
+        disk_percent = max((d.get("percent", 0) for d in disk_data), default=0)
+        return {
+            "cpu_percent": cpu_data.get("percent", 0),
+            "mem_percent": mem_data.get("percent", 0),
+            "disk_percent": disk_percent,
+        }
+    except Exception:
+        return {"cpu_percent": 0, "mem_percent": 0, "disk_percent": 0}
 
 
 # ═══════════════════════════════════════════════════════════
@@ -158,20 +166,9 @@ async def _fire_alert(rule: dict, actual_value: float):
     alert_id = cur.lastrowid
     _active_alerts[rule["id"]] = {"fired_at": time.time(), "value": actual_value}
 
-    # Browser push via WebSocket
-    alert_data = {
-        "type": "alert",
-        "id": alert_id,
-        "rule_name": rule["name"],
-        "metric": rule["metric"],
-        "threshold": rule["threshold"],
-        "actual_value": actual_value,
-        "message": message,
-        "level": "critical",
-    }
+    # Build and publish AlertEvent once; reuse its dict form for webhook
     from server.events import AlertEvent
-    _event_bus = _get_event_bus()
-    await _event_bus.publish(AlertEvent(
+    event = AlertEvent(
         rule_name=rule["name"],
         metric=rule["metric"],
         threshold=rule["threshold"],
@@ -179,11 +176,13 @@ async def _fire_alert(rule: dict, actual_value: float):
         message=message,
         level="critical",
         alert_id=alert_id,
-    ))
+    )
+    _event_bus = _get_event_bus()
+    await _event_bus.publish(event)
 
     # Webhook
     if rule["action_type"] == "webhook" and rule["action_config"]:
-        await _send_webhook(rule["action_config"], alert_data)
+        await _send_webhook(rule["action_config"], event.to_dict())
 
 
 async def _recover_alert(rule: dict, actual_value: float):

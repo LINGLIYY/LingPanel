@@ -1,16 +1,19 @@
 """LingServer Dashboard — System Routes
 
-GET  /api/system   — system info (CPU/Mem/Disk/Net)
-WS   /ws/live      — real-time metrics push
+GET  /api/system            — system info (CPU/Mem/Disk/Net)
+GET  /api/system/backgrounds — list dark/light background images
+WS   /ws/live               — real-time metrics push
 """
 import asyncio
 import time
 import os
 import socket
 import platform
+from pathlib import Path
 
 import psutil
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from server.config import BACKGROUNDS_DIR
 
 from server.ws import manager
 
@@ -91,7 +94,24 @@ def _collect_system() -> dict:
     }
 
 
-# ── REST endpoint (authenticated in main.py) ──
+# ── REST endpoints (authenticated in main.py) ──
+
+_IMG_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"}
+
+
+@router.get("/api/system/backgrounds")
+async def list_backgrounds():
+    """Return available dark/light background images from backgrounds/ folder."""
+    result = {"dark": [], "light": []}
+    for theme in ("dark", "light"):
+        folder = Path(BACKGROUNDS_DIR) / theme
+        if folder.is_dir():
+            result[theme] = sorted(
+                [f.name for f in folder.iterdir()
+                 if f.is_file() and f.suffix.lower() in _IMG_EXTS]
+            )
+    return result
+
 
 @router.get("/api/system")
 async def system_info():

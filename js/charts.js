@@ -74,25 +74,17 @@ export function createLineChart(canvas, options = {}) {
     },
   };
 
-  // Deep merge (shallow for known keys)
-  const merged = {
-    ...defaults,
-    ...options,
-    options: {
-      ...defaults.options,
-      ...(options.options || {}),
-      scales: {
-        ...defaults.options.scales,
-        ...((options.options || {}).scales || {}),
-        x: { ...defaults.options.scales.x, ...(((options.options || {}).scales || {}).x || {}) },
-        y: { ...defaults.options.scales.y, ...(((options.options || {}).scales || {}).y || {}) },
-      },
-      plugins: {
-        ...defaults.options.plugins,
-        ...((options.options || {}).plugins || {}),
-      },
-    },
+  // Recursive deep merge — handles any nesting depth without manual wiring
+  const _deepMerge = (base, overrides) => {
+    const out = { ...base, ...overrides };
+    for (const k of Object.keys(overrides)) {
+      if (overrides[k] && typeof overrides[k] === 'object' && !Array.isArray(overrides[k])) {
+        out[k] = _deepMerge(base[k] || {}, overrides[k]);
+      }
+    }
+    return out;
   };
+  const merged = _deepMerge(defaults, options);
 
   return new Chart(canvas, merged);
 }

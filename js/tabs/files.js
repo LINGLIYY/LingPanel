@@ -5,7 +5,7 @@
  * drag-drop upload, delete, mkdir.
  * Data: GET /api/files + PUT /api/files/save + POST upload/mkdir + DELETE
  */
-import { el, clear, $ } from '../utils/dom.js';
+import { el, clear, $, escapeHtml } from '../utils/dom.js';
 import { comm } from '../comm.js';
 const { get, post, put, del } = comm.rest;
 import { notify } from '../utils/notify.js';
@@ -131,7 +131,7 @@ function renderBreadcrumb(bread) {
     if (acc !== '/') crumbs.push({ label: p, path: acc });
   }
   bread.innerHTML = crumbs.map((c, i) =>
-    `<span class="breadcrumb__sep">/</span><span class="breadcrumb__item${i === crumbs.length - 1 ? ' active' : ''}" data-path="${_esc(c.path)}">${_esc(c.label)}</span>`
+    `<span class="breadcrumb__sep">/</span><span class="breadcrumb__item${i === crumbs.length - 1 ? ' active' : ''}" data-path="${escapeHtml(c.path)}">${escapeHtml(c.label)}</span>`
   ).join('');
 
   bread.querySelectorAll('.breadcrumb__item').forEach(item => {
@@ -149,15 +149,15 @@ function renderFileList(items, body) {
   body.innerHTML = `<table class="data-table">
     <thead><tr><th>名称</th><th>大小</th><th>修改时间</th><th>权限</th><th>操作</th></tr></thead>
     <tbody>${items.map(f => `<tr>
-      <td style="font-weight:500;cursor:pointer;" data-path="${_esc(f.path)}" class="file-entry ${f.is_dir ? 'file-dir' : 'file-file'}">
-        ${f.is_dir ? '📁' : '📄'} ${_esc(f.name)}${f.is_symlink ? ' ↪' : ''}
+      <td style="font-weight:500;cursor:pointer;" data-path="${escapeHtml(f.path)}" class="file-entry ${f.is_dir ? 'file-dir' : 'file-file'}">
+        ${f.is_dir ? '📁' : '📄'} ${escapeHtml(f.name)}${f.is_symlink ? ' ↪' : ''}
       </td>
       <td>${f.is_dir ? '-' : f.size_human || bytes(f.size_bytes || 0)}</td>
-      <td>${_esc(f.modified || '--')}</td>
+      <td>${escapeHtml(f.modified || '--')}</td>
       <td>${f.permissions || '--'}</td>
       <td>
-        ${!f.is_dir ? `<button class="panel__btn panel__btn--sm file-edit" data-path="${_esc(f.path)}">编辑</button>` : ''}
-        <button class="panel__btn panel__btn--danger panel__btn--sm file-delete" data-path="${_esc(f.path)}">删除</button>
+        ${!f.is_dir ? `<button class="panel__btn panel__btn--sm file-edit" data-path="${escapeHtml(f.path)}">编辑</button>` : ''}
+        <button class="panel__btn panel__btn--danger panel__btn--sm file-delete" data-path="${escapeHtml(f.path)}">删除</button>
       </td>
     </tr>`).join('')}</tbody></table>`;
 
@@ -251,7 +251,6 @@ async function handleUpload(e) {
   e.target.value = '';
 }
 
-function _esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
 export function cleanup() {
   if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }

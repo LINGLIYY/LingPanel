@@ -58,6 +58,10 @@ const clearFormat  = () => svg(['M3 6h18M8 6V4h8v2M10 11v6M14 11v6M5 6l1 14h12l1
 const terminal     = () => svg(['M4 17l5-5-5-5M12 19h8']);
 const eye          = () => svg(['M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z','M12 15a3 3 0 100-6 3 3 0 000 6z']);
 const bell         = () => svg(['M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9','M13.73 21a2 2 0 01-3.46 0']);
+const lock         = () => svg(['M19 11H5a2 2 0 00-2 2v7a2 2 0 002 2h14a2 2 0 002-2v-7a2 2 0 00-2-2z','M7 11V7a5 5 0 0110 0v4']);
+const clipboard    = () => svg(['M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2','M9 14h6M9 18h6']);
+const imageIcon    = () => svg(['M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z','M8.5 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3z','M21 15l-5-5L5 21']);
+const info         = () => svg(['M12 22a10 10 0 100-20 10 10 0 000 20z','M12 16v-4M12 8h.01']);
 
 // ═══════════════════════════════════════════════════════════
 //  Files & Folders
@@ -110,7 +114,8 @@ const icons = {
   cpu, memory, disk, network, clock, 'bar-chart': barChart, activity,
   search, refresh, upload, plus, 'x': xMark, check, 'chevron-right': chevronRight,
   'chevron-left': chevronLeft, 'chevron-up': chevronUp, 'chevron-down': chevronDown,
-  copy, paste, 'clear-format': clearFormat, terminal, eye, bell,
+  copy, paste, 'clear-format': clearFormat, terminal, eye, bell, lock, clipboard,
+  image: imageIcon, info,
   folder, file, 'folder-plus': folderPlus,
   server: serverSvg, database, shield, box, settings, globe, docker: dockerIcon,
   'circle-green': circleGreen, 'circle-red': circleRed, 'circle-yellow': circleYellow,

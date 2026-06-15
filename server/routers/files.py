@@ -13,6 +13,8 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 
+from server.utils import fmt_size
+
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Request
 from fastapi.responses import PlainTextResponse
 
@@ -71,12 +73,6 @@ def _safe_path(user_path: str) -> Path:
     return resolved
 
 
-def _fmt_size(n: int) -> str:
-    for u in ["B", "KB", "MB", "GB"]:
-        if n < 1024:
-            return f"{n:.1f} {u}"
-        n /= 1024
-    return f"{n:.1f} TB"
 
 
 def _stat_entry(entry: Path) -> dict:
@@ -89,7 +85,7 @@ def _stat_entry(entry: Path) -> dict:
             "is_dir": entry.is_dir(),
             "is_symlink": entry.is_symlink(),
             "size_bytes": st.st_size if not entry.is_dir() else 0,
-            "size_human": _fmt_size(st.st_size) if not entry.is_dir() else "",
+            "size_human": fmt_size(st.st_size) if not entry.is_dir() else "",
             "modified": datetime.fromtimestamp(st.st_mtime).isoformat(),
             "permissions": oct(st.st_mode)[-3:],
         }
@@ -151,9 +147,9 @@ async def read_file(path: str = "", max_lines: int = 500, _user=Depends(get_curr
         return {
             "path": str(target),
             "size_bytes": size,
-            "size_human": _fmt_size(size),
+            "size_human": fmt_size(size),
             "too_large": True,
-            "content": f"[文件过大 ({_fmt_size(size)})，无法预览，上限 {FILE_PREVIEW_MAX_MB}MB]",
+            "content": f"[文件过大 ({fmt_size(size)})，无法预览，上限 {FILE_PREVIEW_MAX_MB}MB]",
         }
 
     try:
@@ -173,7 +169,7 @@ async def read_file(path: str = "", max_lines: int = 500, _user=Depends(get_curr
     return {
         "path": str(target),
         "size_bytes": size,
-        "size_human": _fmt_size(size),
+        "size_human": fmt_size(size),
         "total_lines": total,
         "truncated": truncated,
         "content": content,
@@ -228,7 +224,7 @@ async def upload_file(
                 except OSError:
                     pass
             else:
-                results.append({"name": f.filename, "success": True, "size_bytes": size, "size_human": _fmt_size(size)})
+                results.append({"name": f.filename, "success": True, "size_bytes": size, "size_human": fmt_size(size)})
         except PermissionError:
             results.append({"name": f.filename, "success": False, "error": "写入权限不足"})
         except OSError as e:

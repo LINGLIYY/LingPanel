@@ -87,3 +87,12 @@ export function setStyles(el, styles) {
   if (!el) return;
   Object.assign(el.style, styles);
 }
+
+/**
+ * HTML-entity escape. Uses browser's own parser — no regex.
+ */
+export function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}

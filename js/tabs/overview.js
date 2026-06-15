@@ -5,7 +5,7 @@
  * system info & disk detail panels + Launchpad quick services.
  * Data: WebSocket /ws/live + localStorage for launchpad.
  */
-import { el, clear, $ } from '../utils/dom.js';
+import { el, clear, $, escapeHtml } from '../utils/dom.js';
 import { comm } from '../comm.js';
 const { on, off } = comm;
 import { uptime, percent, bytesPerSec, bytes } from '../utils/format.js';
@@ -156,8 +156,8 @@ function kpiCardHTML(id, label, iconSvg, value, sub, color, hist) {
         <span class="kpi-card__icon">${iconSvg}</span>
         <span class="kpi-card__label">${label}</span>
       </div>
-      <div class="${valClass}" id="kpi-${id}-val">${_esc(value)}</div>
-      <div class="kpi-card__sub" id="kpi-${id}-sub">${_esc(sub)}</div>
+      <div class="${valClass}" id="kpi-${id}-val">${escapeHtml(value)}</div>
+      <div class="kpi-card__sub" id="kpi-${id}-sub">${escapeHtml(sub)}</div>
       ${sparkSvg ? `<div class="kpi-card__spark">${sparkSvg}</div>` : ''}
     </div>
   </div>`;
@@ -266,7 +266,7 @@ function renderDetailPanels(data) {
   const sysEl = $('#detail-system-body');
   if (sysEl) {
     sysEl.innerHTML = [
-      `<div class="info-row"><span class="info-row__key">hostname</span><span class="info-row__val">${_esc(data.hostname || '--')}</span></div>`,
+      `<div class="info-row"><span class="info-row__key">hostname</span><span class="info-row__val">${escapeHtml(data.hostname || '--')}</span></div>`,
       `<div class="info-row"><span class="info-row__key">cores</span><span class="info-row__val">${data.cpu?.cores || '--'} 核 / ${data.cpu?.threads || '--'} 线程</span></div>`,
       `<div class="info-row"><span class="info-row__key">uptime</span><span class="info-row__val">${uptime(data.uptime_seconds || 0)}</span></div>`,
       `<div class="info-row"><span class="info-row__key">load</span><span class="info-row__val">${(data.cpu?.load_avg?.['1min'] || 0).toFixed(2)} / ${(data.cpu?.load_avg?.['5min'] || 0).toFixed(2)} / ${(data.cpu?.load_avg?.['15min'] || 0).toFixed(2)}</span></div>`,
@@ -285,7 +285,7 @@ function renderDetailPanels(data) {
         const pct = d.percent;
         const cls = pct > 90 ? 'crit' : pct > 75 ? 'warn' : 'ok';
         return `<tr>
-          <td style="font-weight:500">${_esc(d.mount)}</td>
+          <td style="font-weight:500">${escapeHtml(d.mount)}</td>
           <td>${d.used_gb} / ${d.total_gb} GB</td>
           <td><div class="usage-bar-wrap">${percent(pct)}<div class="usage-bar"><div class="usage-bar__fill ${cls}" style="width:${pct}%"></div></div></div></td>
         </tr>`;
@@ -336,8 +336,8 @@ function renderLaunchpad() {
     const a = el('a', { href: svc.url || '#', class: 'svc-card' + (svc.primary ? ' svc-card--primary' : ''), target: '_blank', rel: 'noopener' },
       el('span', { class: 'svc-card__icon', html: LAUNCH_ICONS[svc.icon] || LAUNCH_ICONS.service }),
       el('span', { class: 'svc-card__body' },
-        el('span', { class: 'svc-card__name' }, _esc(svc.name)),
-        el('span', { class: 'svc-card__desc' }, _esc(svc.desc || svc.name)),
+        el('span', { class: 'svc-card__name' }, escapeHtml(svc.name)),
+        el('span', { class: 'svc-card__desc' }, escapeHtml(svc.desc || svc.name)),
       ),
       el('span', { class: 'svc-card__arrow', html: '↗' }),
     );
@@ -481,4 +481,3 @@ function applyView(view) {
   }
 }
 
-function _esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
