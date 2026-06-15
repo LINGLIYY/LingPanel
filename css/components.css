@@ -487,6 +487,31 @@
 [data-theme="light"] .svc-card__desc { color: oklch(0.50 0.03 245); }
 [data-theme="light"] .svc-card__arrow { color: oklch(0.50 0.03 245); }
 
+/* ---- Service Card Edit/Delete ---- */
+.svc-card-wrap { position: relative; }
+.svc-card-wrap .svc-card { width: 100%; }
+.svc-card__edit,
+.svc-card__delete {
+  position: absolute; top: 8px; width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px; border: none; background: transparent;
+  color: oklch(0.45 0.01 260); cursor: pointer;
+  opacity: 0; transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+  z-index: 2; font-size: 14px; padding: 0;
+}
+.svc-card-wrap:hover .svc-card__edit,
+.svc-card-wrap:hover .svc-card__delete { opacity: 1; }
+.svc-card__edit { right: 30px; }
+.svc-card__delete { right: 6px; }
+.svc-card__edit:hover { background: oklch(0.55 0.18 255 / 0.15); color: var(--blue); }
+.svc-card__delete:hover { background: oklch(0.55 0.22 25 / 0.15); color: var(--red); }
+
+/* Light theme for edit/delete */
+[data-theme="light"] .svc-card__edit { color: oklch(0.50 0.03 245); }
+[data-theme="light"] .svc-card__delete { color: oklch(0.50 0.03 245); }
+[data-theme="light"] .svc-card__edit:hover { background: oklch(0.58 0.16 235 / 0.14); color: oklch(0.52 0.16 235); }
+[data-theme="light"] .svc-card__delete:hover { background: oklch(0.52 0.18 25 / 0.10); color: oklch(0.52 0.18 25); }
+
 /* ---- Empty State ---- */
    ============================================================ */
 .empty-state {
@@ -567,6 +592,12 @@
 .modal-field__input.error {
   border-color: oklch(0.55 0.22 25 / 0.6);
   box-shadow: 0 0 0 3px oklch(0.55 0.22 25 / 0.08);
+  animation: shake 0.4s ease-in-out;
+}
+.modal-field__input.success {
+  border-color: oklch(0.72 0.22 160 / 0.6);
+  box-shadow: 0 0 0 3px oklch(0.72 0.22 160 / 0.12);
+  animation: input-success-glow 0.6s var(--ease-out);
 }
 .modal-field__hint {
   font-family: var(--font-sans); font-size: 10px;

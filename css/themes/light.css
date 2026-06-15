@@ -139,3 +139,8 @@
 [data-theme="light"] .debug-restore { background: oklch(1 0 0 / 0.60); border-color: oklch(0 0 0 / 0.12); color: oklch(0.48 0.03 245); }
 [data-theme="light"] .debug-restore:hover { color: oklch(0.25 0.06 245); }
 [data-theme="light"] .ctrl-sep { background: oklch(0 0 0 / 0.10); }
+
+/* ── Light scrollbar ── */
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: oklch(0 0 0 / 0.12); }
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: oklch(0 0 0 / 0.20); }
+[data-theme="light"] * { scrollbar-color: oklch(0 0 0 / 0.12) transparent; }

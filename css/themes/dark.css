@@ -4,3 +4,13 @@
 
 /* Dark is the default theme. All :root values are dark-mode.
    Add [data-theme="dark"] overrides here if needed. */
+
+/* ── Global Scrollbar (dark) ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: oklch(1 0 0 / 0.10); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(1 0 0 / 0.16); }
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* Firefox */
+* { scrollbar-width: thin; scrollbar-color: oklch(1 0 0 / 0.10) transparent; }
