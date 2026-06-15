@@ -69,6 +69,7 @@ yarn.lock
 # ── Documentation, assets, reference materials ──
 docs/
 dame/
+主线/
 图片/
 
 # ── Claude Code（全部在 .claude/ 目录下统一管理）──
