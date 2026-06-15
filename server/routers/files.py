@@ -18,6 +18,7 @@ from fastapi.responses import PlainTextResponse
 
 from server.config import FILE_ROOT_WHITELIST, FILE_PREVIEW_MAX_MB, FILE_UPLOAD_MAX_MB
 from server.auth import get_current_user
+from server.models.schemas import FileSaveRequest
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 
@@ -292,3 +293,36 @@ async def make_directory(path: str = "", name: str = "", _user=Depends(get_curre
         raise HTTPException(403, "无写入权限")
     except OSError as e:
         raise HTTPException(500, f"创建失败: {e}")
+
+
+@router.put("/save")
+async def save_file(req: FileSaveRequest, _user=Depends(get_current_user)):
+    """Save (write or overwrite) a text file with UTF-8 content.
+
+    Creates the file if it doesn't exist; overwrites if it does.
+    """
+    target = _safe_path(req.path)
+
+    # Refuse to write to directories
+    if target.exists() and target.is_dir():
+        raise HTTPException(400, "目标路径是目录，不能写入")
+
+    # Ensure parent directory exists
+    parent = target.parent
+    if not parent.exists():
+        raise HTTPException(404, f"父目录不存在: {parent}")
+
+    try:
+        with open(target, "w", encoding="utf-8") as f:
+            f.write(req.content)
+    except PermissionError:
+        raise HTTPException(403, "文件无写入权限")
+    except OSError as e:
+        raise HTTPException(500, f"写入失败: {e}")
+
+    return {
+        "success": True,
+        "path": str(target),
+        "size_bytes": len(req.content.encode("utf-8")),
+        "message": "文件已保存",
+    }

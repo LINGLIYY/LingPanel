@@ -35,3 +35,9 @@ class TokenRefreshRequest(BaseModel):
 class TokenRefreshResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+# ── Files ──
+class FileSaveRequest(BaseModel):
+    path: str = Field(..., min_length=1, max_length=4096)
+    content: str = Field(..., max_length=10 * 1024 * 1024)  # 10MB max

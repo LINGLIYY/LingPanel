@@ -118,3 +118,43 @@ def test_mkdir_and_delete(auth_client):
         r2 = auth_client.delete("/api/files", params={"path": full_path})
         if r2.status_code == 200:
             assert r2.json()["success"] is True
+
+
+# ═══════════════════════════════════════════════════════════
+#  Save (write) file
+# ═══════════════════════════════════════════════════════════
+
+def test_save_file(auth_client):
+    """PUT /api/files/save — write a text file, then verify content."""
+    test_path = "/tmp/test_ling_save.txt"
+    content = "Hello from LingServer Dashboard!\n第二行中文测试。\n"
+
+    # Save
+    r = auth_client.put("/api/files/save", json={"path": test_path, "content": content})
+    if r.status_code == 200:
+        data = r.json()
+        assert data["success"] is True
+        # Path may differ on Windows (e.g. D:\tmp vs /tmp)
+        assert data["path"].endswith("test_ling_save.txt")
+
+        # Verify by reading back
+        r2 = auth_client.get("/api/files/read", params={"path": test_path})
+        assert r2.status_code == 200
+        assert r2.json()["content"] == content
+
+        # Clean up
+        auth_client.delete("/api/files", params={"path": test_path})
+
+
+def test_save_file_rejects_directory(auth_client):
+    """PUT /api/files/save to an existing directory → 400."""
+    r = auth_client.put("/api/files/save", json={"path": "/tmp", "content": "test"})
+    if r.status_code == 400:
+        assert "目录" in r.json()["detail"]
+
+
+def test_save_file_rejects_unsafe_path(auth_client):
+    """PUT /api/files/save with path traversal → 400."""
+    r = auth_client.put("/api/files/save",
+                        json={"path": "../../../etc/malicious", "content": "bad"})
+    assert r.status_code == 400
