@@ -1,4 +1,4 @@
-# LingServer Dashboard v2.0
+# LingServer Dashboard v1.0
 
 轻量级单页服务器运维面板，通过 Web UI 管理 1-3 台 Ubuntu 服务器。实时指标、文件浏览、Docker 管理、终端访问、日志查看、告警和设置——全在一个页面。
 
