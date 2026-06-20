@@ -21,13 +21,16 @@ from server.main import create_app
 @pytest.fixture(autouse=True)
 def _reset_state():
     """Reset in-memory state before each test."""
-    # Reset lockout store
+    # Reset lockout stores
     import server.routers.auth as auth_mod
     auth_mod._lockout.clear()
+    auth_mod._user_failures.clear()
 
-    # Reset token blacklist
+    # Reset token blacklist + user revocation + password change rate tracker
     import server.auth as auth_pkg
     auth_pkg._token_blacklist.clear()
+    auth_pkg._user_revoke.clear()
+    auth_mod._change_pw_tracker.clear()
 
     # Reset admin password to default (tests may change it)
     from server.models.database import get_db

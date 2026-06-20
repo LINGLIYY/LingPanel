@@ -4,6 +4,7 @@ Injects CSP and other security headers on every response.
 """
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
+import server.config as _cfg
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -31,7 +32,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
 
-        # HSTS (only when behind HTTPS — set by Nginx in production)
-        # response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        # HSTS — only in production (requires HTTPS via nginx reverse proxy)
+        if not _cfg.DEBUG:
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
 
         return response

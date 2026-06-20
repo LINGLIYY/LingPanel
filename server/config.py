@@ -13,8 +13,8 @@ DB_PATH = os.getenv("LING_DB_PATH", str(BASE_DIR / "ling-server.db"))
 
 # ── Security ──
 SECRET_KEY = os.getenv("LING_SECRET_KEY", "")  # empty → auto-generate at startup
-ACCESS_TOKEN_EXPIRE_HOURS = int(os.getenv("LING_ACCESS_EXPIRE_HOURS", "24"))
-REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("LING_REFRESH_EXPIRE_DAYS", "7"))
+ACCESS_TOKEN_EXPIRE_HOURS = int(os.getenv("LING_ACCESS_EXPIRE_HOURS", "2"))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("LING_REFRESH_EXPIRE_DAYS", "3"))
 BCRYPT_COST = int(os.getenv("LING_BCRYPT_COST", "12"))
 MAX_LOGIN_FAILURES = int(os.getenv("LING_MAX_LOGIN_FAILURES", "5"))
 LOGIN_LOCKOUT_MINUTES = int(os.getenv("LING_LOGIN_LOCKOUT_MINUTES", "15"))
@@ -32,6 +32,14 @@ DEBUG = os.getenv("LING_DEBUG", "false").lower() == "true"
 # ── File Browser ──
 FILE_PREVIEW_MAX_MB = int(os.getenv("LING_FILE_PREVIEW_MB", "10"))
 FILE_UPLOAD_MAX_MB = int(os.getenv("LING_FILE_UPLOAD_MB", "500"))
+FILE_UPLOAD_ALLOWED_EXTENSIONS = os.getenv(
+    "LING_FILE_UPLOAD_EXTENSIONS",
+    ".txt,.log,.conf,.cfg,.ini,.json,.yaml,.yml,.xml,.csv,.md,.py,.sh,.js,.css,.html,.env,.toml",
+).split(",")
+FILE_UPLOAD_BLOCKED_EXTENSIONS = os.getenv(
+    "LING_FILE_UPLOAD_BLOCKED",
+    ".exe,.dll,.so,.bin,.bat,.cmd,.ps1,.com,.msi,.app,.pkg,.deb,.rpm",
+).split(",")
 FILE_ROOT_WHITELIST = os.getenv(
     "LING_FILE_WHITELIST",
     "/home,/var,/etc,/opt,/tmp,/usr,/srv",

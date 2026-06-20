@@ -8,7 +8,12 @@ from typing import Optional
 
 # ── Auth ──
 class LoginRequest(BaseModel):
-    username: str = Field(..., min_length=1, max_length=64)
+    username: str = Field(
+        ...,
+        min_length=3,
+        max_length=64,
+        pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]$",
+    )
     password: str = Field(..., min_length=1, max_length=128)
     remember: bool = False
 

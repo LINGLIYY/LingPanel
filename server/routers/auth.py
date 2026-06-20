@@ -18,6 +18,8 @@ from server.auth import (
     create_access_token, create_refresh_token,
     decode_token, blacklist_token,
     get_current_user,
+    validate_password_strength,
+    revoke_user_tokens,
 )
 from server.models.schemas import LoginRequest, LoginResponse, UserInfo, TokenRefreshRequest, TokenRefreshResponse
 from server.models.database import get_db
@@ -52,6 +54,51 @@ def _record_failure(client_ip: str):
 
 def _clear_failures(client_ip: str):
     _lockout.pop(client_ip, None)
+
+
+# ── User-level lockout (A9) — protects against username-targeted brute force ──
+_user_failures: dict[str, dict] = {}  # username → {failures, locked_until}
+
+
+def _check_user_lockout(username: str):
+    """Raise 423 if username is locked out."""
+    now = time.time()
+    entry = _user_failures.get(username)
+    if entry and entry.get("locked_until", 0) > now:
+        remaining = int(entry["locked_until"] - now)
+        raise HTTPException(
+            status_code=423,
+            detail=f"账户已被临时锁定，请 {remaining} 秒后再试",
+        )
+
+
+def _record_user_failure(username: str):
+    failures = _user_failures.get(username, {}).get("failures", 0) + 1
+    entry = {"failures": failures}
+    if failures >= MAX_LOGIN_FAILURES:
+        entry["locked_until"] = time.time() + LOGIN_LOCKOUT_MINUTES * 60
+    _user_failures[username] = entry
+
+
+def _clear_user_failures(username: str):
+    _user_failures.pop(username, None)
+
+
+# ── Password change rate limiting (A15) ──
+_change_pw_tracker: dict[str, list[float]] = {}  # user_id → [timestamps]
+_CHANGE_PW_MAX = 5         # max attempts per window
+_CHANGE_PW_WINDOW = 3600   # 1 hour
+
+
+def _check_change_pw_rate(user_id: int):
+    """Raise 429 if password changes exceed rate limit."""
+    now = time.time()
+    timestamps = _change_pw_tracker.get(str(user_id), [])
+    timestamps = [t for t in timestamps if now - t < _CHANGE_PW_WINDOW]
+    if len(timestamps) >= _CHANGE_PW_MAX:
+        raise HTTPException(429, "密码修改过于频繁，请稍后再试")
+    timestamps.append(now)
+    _change_pw_tracker[str(user_id)] = timestamps
 
 
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str,
@@ -95,8 +142,9 @@ async def login(request: Request, body: LoginRequest):
     """Authenticate user, return tokens via HttpOnly cookies."""
     client_ip = request.client.host if request.client else "unknown"
 
-    # Check lockout
+    # Check lockout (IP + user)
     _check_lockout(client_ip)
+    _check_user_lockout(body.username)
 
     db = get_db()
 
@@ -107,6 +155,7 @@ async def login(request: Request, body: LoginRequest):
 
     if not row or not verify_password(body.password, row["password_hash"]):
         _record_failure(client_ip)
+        _record_user_failure(body.username)
         # Audit
         db.execute(
             "INSERT INTO login_audit (username, ip_address, success) VALUES (?,?,0)",
@@ -126,6 +175,7 @@ async def login(request: Request, body: LoginRequest):
 
     # Success
     _clear_failures(client_ip)
+    _clear_user_failures(body.username)
 
     access_token = create_access_token(row["id"], row["username"])
     refresh_token = create_refresh_token(row["id"], row["username"])
@@ -259,15 +309,21 @@ async def change_password(
     request: Request,
     user: dict = Depends(get_current_user),
 ):
-    """Change current user's password."""
+    """Change current user's password. Revokes all existing sessions on success."""
+    # Rate limit (A15)
+    _check_change_pw_rate(user["user_id"])
+
     body = await request.json()
     old_password = body.get("old_password", "")
     new_password = body.get("new_password", "")
 
     if not old_password or not new_password:
         raise HTTPException(400, "请提供当前密码和新密码")
-    if len(new_password) < 8:
-        raise HTTPException(400, "新密码长度至少 8 位")
+
+    # Password strength validation (A3)
+    pw_error = validate_password_strength(new_password)
+    if pw_error:
+        raise HTTPException(400, pw_error)
 
     db = get_db()
     row = db.execute(
@@ -286,4 +342,11 @@ async def change_password(
         (new_hash, user["user_id"]),
     )
     db.commit()
-    return {"success": True, "message": "密码已修改"}
+
+    # Revoke all existing tokens for this user — forces re-login (A4)
+    revoke_user_tokens(user["user_id"])
+
+    # Clear auth cookies so the client must re-authenticate
+    response = JSONResponse({"success": True, "message": "密码已修改，请重新登录"})
+    _clear_auth_cookies(response)
+    return response

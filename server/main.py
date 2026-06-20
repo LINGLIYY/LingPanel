@@ -45,16 +45,36 @@ def create_app() -> FastAPI:
     )
 
     # ── CORS ──
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    if DEBUG:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+    else:
+        # Production: restrict origins, enable credentials for cookie auth
+        _allowed_origins = os.getenv("LING_ALLOWED_ORIGINS", "http://localhost:8899,https://localhost:8899")
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=[o.strip() for o in _allowed_origins.split(",") if o.strip()],
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+            allow_headers=["*"],
+        )
 
     # ── Security Headers ──
     from server.middleware.security import SecurityHeadersMiddleware
     app.add_middleware(SecurityHeadersMiddleware)
+
+    # ── Hide server identity in production ──
+    if not DEBUG:
+
+        @app.middleware("http")
+        async def _hide_server_header(request, call_next):
+            response = await call_next(request)
+            response.headers["Server"] = "LingPanel"
+            return response
 
     # ── Rate Limiting ──
     limiter = RateLimiter(
@@ -275,6 +295,14 @@ def _ensure_secret_key():
     import server.config as _cfg
 
     if _cfg_key:
+        # Refuse known dev key in production
+        if _cfg_key == "ling-server-dev-key--change-in-production" and not DEBUG:
+            _sys.stderr.write(
+                "  ❌ 生产环境不允许使用开发密钥！\n"
+                "  ❌ 请设置环境变量 LING_SECRET_KEY 为随机字符串后重启\n"
+            )
+            _sys.stderr.flush()
+            _sys.exit(1)
         return  # Explicitly configured — nothing to do
 
     if DEBUG:
@@ -368,4 +396,5 @@ if __name__ == "__main__":
     |   Docs: http://{HOST}:{PORT}/api/docs |{pw_line}
     +======================================+
     """)
-    uvicorn.run("server.main:app", host=HOST, port=PORT, reload=DEBUG, log_level="info")
+    uvicorn.run("server.main:app", host=HOST, port=PORT, reload=DEBUG,
+                log_level="info", server_header=False)

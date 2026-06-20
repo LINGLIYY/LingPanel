@@ -30,23 +30,23 @@ class TestEncoding:
 
 
 class TestSessionId:
-    """Session ID generation tests."""
+    """Session ID generation tests — uses random hex IDs (A14)."""
 
-    def test_increments(self):
+    def test_uniqueness(self):
+        """Two consecutive calls produce unique session IDs."""
         from server.routers.terminal import _next_session_id
-        import server.routers.terminal as tmod
-        tmod._session_counter = 0
         id1 = _next_session_id()
         id2 = _next_session_id()
-        assert id1 == "term_1"
-        assert id2 == "term_2"
         assert id1 != id2
+        assert id1.startswith("term_")
+        assert id2.startswith("term_")
 
     def test_format(self):
+        """Session ID is 'term_' + 16 hex characters."""
         from server.routers.terminal import _next_session_id
+        import re
         sid = _next_session_id()
-        assert sid.startswith("term_")
-        assert int(sid.split("_")[1]) > 0
+        assert re.match(r"^term_[0-9a-f]{16}$", sid), f"Unexpected session ID format: {sid}"
 
 
 # ═══════════════════════════════════════════════════════════

@@ -156,7 +156,7 @@ def test_change_password(auth_client):
     """POST /api/auth/change-password changes password and clears must_change flag."""
     r = auth_client.post("/api/auth/change-password", json={
         "old_password": "admin",
-        "new_password": "newpass123",
+        "new_password": "NewPass@12345",
     })
     assert r.status_code == 200
     assert r.json()["success"] is True
@@ -171,7 +171,7 @@ def test_change_password(auth_client):
 
     # New password should work
     with TestClient(app2) as c:
-        r = c.post("/api/auth/login", json={"username": "admin", "password": "newpass123"})
+        r = c.post("/api/auth/login", json={"username": "admin", "password": "NewPass@12345"})
         assert r.status_code == 200
 
 
@@ -179,13 +179,13 @@ def test_change_password_wrong_old(auth_client):
     """Change password with wrong old password fails."""
     r = auth_client.post("/api/auth/change-password", json={
         "old_password": "wrongpassword",
-        "new_password": "newpass123",
+        "new_password": "NewPass@12345",
     })
     assert r.status_code == 400
 
 
 def test_change_password_too_short(auth_client):
-    """New password < 4 chars rejected."""
+    """New password < 12 chars rejected."""
     r = auth_client.post("/api/auth/change-password", json={
         "old_password": "admin",
         "new_password": "ab",

@@ -463,13 +463,12 @@ def _create_terminal_session(
 # ═══════════════════════════════════════════════════════════
 
 _sessions: dict[str, dict] = {}
-_session_counter = 0
 
 
 def _next_session_id() -> str:
-    global _session_counter
-    _session_counter += 1
-    return f"term_{_session_counter}"
+    """Generate an unpredictable terminal session ID."""
+    import secrets
+    return f"term_{secrets.token_hex(8)}"
 
 
 # ═══════════════════════════════════════════════════════════

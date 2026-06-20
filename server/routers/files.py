@@ -18,7 +18,10 @@ from server.utils import fmt_size
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Request
 from fastapi.responses import PlainTextResponse
 
-from server.config import FILE_ROOT_WHITELIST, FILE_PREVIEW_MAX_MB, FILE_UPLOAD_MAX_MB
+from server.config import (
+    FILE_ROOT_WHITELIST, FILE_PREVIEW_MAX_MB, FILE_UPLOAD_MAX_MB,
+    FILE_UPLOAD_ALLOWED_EXTENSIONS, FILE_UPLOAD_BLOCKED_EXTENSIONS,
+)
 from server.auth import get_current_user
 from server.models.schemas import FileSaveRequest
 
@@ -193,6 +196,17 @@ async def upload_file(
     results = []
     for f in files:
         if not f.filename:
+            continue
+
+        # File type validation (A11)
+        ext = Path(f.filename).suffix.lower()
+        if ext in FILE_UPLOAD_BLOCKED_EXTENSIONS:
+            results.append({"name": f.filename, "success": False,
+                           "error": f"不允许上传 {ext} 类型文件"})
+            continue
+        if FILE_UPLOAD_ALLOWED_EXTENSIONS and ext not in FILE_UPLOAD_ALLOWED_EXTENSIONS:
+            results.append({"name": f.filename, "success": False,
+                           "error": f"不支持的文件类型 {ext}"})
             continue
 
         dest = target / f.filename
