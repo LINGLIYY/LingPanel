@@ -21,6 +21,10 @@ from server.auth import (
     validate_password_strength,
     revoke_user_tokens,
 )
+
+# Pre-computed bcrypt hash — used to normalize response time for
+# non-existent users to prevent username enumeration via timing.
+_DUMMY_HASH = "$2b$12$faecoLbNic4bymLt.EgDG.AMS9HQpe32lSwNrR4XqoPIK5JAY3ceC"
 from server.models.schemas import LoginRequest, LoginResponse, UserInfo, TokenRefreshRequest, TokenRefreshResponse
 from server.models.database import get_db
 
@@ -153,7 +157,14 @@ async def login(request: Request, body: LoginRequest):
         (body.username,),
     ).fetchone()
 
-    if not row or not verify_password(body.password, row["password_hash"]):
+    # Always run bcrypt to prevent username enumeration via timing.
+    # For non-existent users, verify against a dummy hash so the
+    # response time is indistinguishable from a real attempt.
+    pw_ok = verify_password(
+        body.password,
+        row["password_hash"] if row else _DUMMY_HASH,
+    )
+    if not row or not pw_ok:
         _record_failure(client_ip)
         _record_user_failure(body.username)
         # Audit
@@ -163,15 +174,12 @@ async def login(request: Request, body: LoginRequest):
         )
         db.commit()
 
+        # Determine lockout status but don't leak remaining attempts
         failures = _lockout.get(client_ip, {}).get("failures", 0)
-        remaining = max(0, MAX_LOGIN_FAILURES - failures)
-
-        status = 423 if failures >= MAX_LOGIN_FAILURES else 401
-        detail = f"用户名或密码错误，剩余尝试 {remaining} 次"
-        if status == 423:
-            detail = f"登录已锁定 {LOGIN_LOCKOUT_MINUTES} 分钟"
-
-        raise HTTPException(status_code=status, detail=detail)
+        if failures >= MAX_LOGIN_FAILURES:
+            raise HTTPException(status_code=423,
+                detail=f"登录已锁定 {LOGIN_LOCKOUT_MINUTES} 分钟")
+        raise HTTPException(status_code=401, detail="用户名或密码错误")
 
     # Success
     _clear_failures(client_ip)
